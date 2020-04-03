@@ -1,4 +1,4 @@
-# org-runbook.el
+# org-runbook.el [![Build Status](https://travis-ci.org/tyler-dodge/org-runbook.svg?branch=master)](https://travis-ci.org/github/tyler-dodge/org-runbook)
 
 Library for looking up and executing commands from org files corresponding to the current buffer.
 
