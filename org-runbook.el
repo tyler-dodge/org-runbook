@@ -29,62 +29,146 @@
 (require 'org)
 (require 'cl)
 (require 's)
+(require 'ht)
 
 (defgroup org-runbook nil "Org Runbook Options")
 
 (defcustom org-runbook-files nil
-  "Global files used by org runbook."
+  "Global files used by org runbook.
+When resolving commands for the current buffer, org-runbook appends
+org-runbook-files with the major mode org file and the projectile
+org file."
   :group 'org-runbook
   :type 'list)
 
 (defcustom org-runbook-project-directory (expand-file-name (f-join user-emacs-directory "runbook" "projects"))
-  "Directory used to lookup the org file corresponding to the current project."
+  "Directory used to lookup the org file corresponding to the current project.
+`org-runbook-projectile-file' joins `org-runbook-project-directory'
+with the `projectile-project-name' for the current buffer."
   :group 'org-runbook
   :type 'directory)
 
 (defcustom org-runbook-modes-directory (expand-file-name (f-join user-emacs-directory "runbook" "modes"))
-  "Directory used to lookup the org file corresponding to the current major mode."
+  "Directory used to lookup the org file for the current major mode.
+`org-runbook-major-mode-file' joins `org-runbook-modes-directory'
+with the `symbol-name' of the `major-mode' for the current buffer."
   :group 'org-runbook
   :type 'directory)
 
 (defcustom org-runbook-view-mode-buffer "*compile-command*"
-  "Buffer used for `org-runbook-view-command-action'."
+  "Buffer used for `org-runbook-view-command-action' to display the resolved command."
   :group 'org-runbook
   :type 'string)
 
 (defcustom org-runbook-execute-command-action #'org-runbook-command-execute-eshell
   "Function called to handle executing the given runbook.
-It is provided the output of `org-runbook--shell-command-for-candidate'."
+It is provided as a single argument the plist output of `org-runbook--shell-command-for-target'."
   :type 'function
   :group 'org-runbook)
 
-(defun org-runbook-comands ()
-  "Return the runbook commands corresponding to the current buffer."
-  (let* ((major-mode-file (list (cons (symbol-name major-mode) (org-runbook-major-mode-file))))
-         (current-buffer-file (when (eq major-mode 'org-mode)
-                                (list (cons "*current buffer*"
-                                            (buffer-file-name)))))
-         (projectile-file (list (when (fboundp 'projectile-project-name)
-                                  (cons (concat "*Project " (projectile-project-name) "*")
-                                        (org-runbook-projectile-file)))))
-         (global-files (--map (cons it it) org-runbook-files))
-         (org-files
-          (seq-uniq (append major-mode-file current-buffer-file projectile-file global-files)
-                    (lambda (lhs rhs) (string= (cdr lhs) (cdr rhs))))))
-    (cl-loop for file in org-files
-             append
-             (progn (set-buffer (find-file-noselect (cdr file)))
-                    (goto-char (point-min))
-                    (-> (list
-                         :file file
-                         :commands (org-runbook--command-at-point))
-                        list)))))
+(defun org-runbook-subcommand-list-p (arg)
+  "Return non-nil if ARG is a list and every element is an org-runbook-command."
+  (and (listp arg)
+       (not (--first (not (org-runbook-subcommand-p it)) arg))))
 
-(defun org-runbook-view-command-action (command)
-  "View the selected command from helm.  Expects COMMAND to be a plist with (:name :buffer :point)."
-  (-let* ((count 0)
-          (project-root (org-runbook--project-root))
-          ((&plist :commands) (org-runbook--shell-command-for-candidate command)))
+(defun org-runbook-command-list-p (arg)
+  "Return non-nil if ARG is a list and every element is an org-runbook-command."
+  (and (listp arg)
+       (not (--first (not (org-runbook-command-p it)) arg))))
+
+(cl-defstruct org-runbook-command-target
+  (name nil :type stringp)
+  (point nil :type numberp)
+  (buffer nil :type bufferp))
+
+(cl-defstruct org-runbook-subcommand
+  (heading nil :type stringp)
+  (target nil :type org-runbook-command-target-p)
+  (command nil :type stringp))
+
+(cl-defstruct org-runbook-command
+  (name nil :type stringp :read-only t)
+  (full-command nil :read-only t :type stringp)
+  (target nil :read-only t :type org-runbook-command-target-p)
+  (subcommands nil :read-only t :type org-runbook-subcommand-list-p))
+
+(cl-defstruct org-runbook-file
+  (name nil :type stringp :read-only t)
+  (file nil :type stringp :read-only t)
+  (targets nil :read-only t :type org-runbook-command-list-p))
+
+
+(defun org-runbook-execute ()
+  "Prompt for command completion and execute the selected command."
+  (interactive)
+  (when-let (command (org-runbook--completing-read))
+    (org-runbook-execute-command-action command)))
+
+(defun org-runbook-view ()
+  "Prompt for command completion and view the selected command."
+  (interactive)
+  (when-let (command (org-runbook--completing-read))
+    (org-runbook-view-command-action command)))
+
+(defun org-runbook-goto ()
+  "Prompt for command completion and goto the selected command's location."
+  (interactive)
+  (when-let (command (org-runbook--completing-read))
+    (org-runbook-goto-command-action command)))
+
+(defun org-runbook-commands ()
+  "Return the runbook commands corresponding to the current buffer."
+  (save-excursion
+    (let* ((major-mode-file (list (cons (symbol-name major-mode) (org-runbook-major-mode-file))))
+           (current-buffer-file (when (eq major-mode 'org-mode)
+                                  (list (cons "*current buffer*"
+                                              (buffer-file-name)))))
+           (projectile-file (list (when (fboundp 'projectile-project-name)
+                                    (cons (concat "*Project " (projectile-project-name) "*")
+                                          (org-runbook-projectile-file)))))
+           (global-files (--map (cons it it) org-runbook-files))
+           (org-files
+            (seq-uniq (append major-mode-file current-buffer-file projectile-file global-files)
+                      (lambda (lhs rhs) (string= (cdr lhs) (cdr rhs))))))
+      (cl-loop for file in org-files
+               append
+               (-let* (((name . file) file)
+                       (targets (progn
+                                  (set-buffer (find-file-noselect file))
+                                  (org-runbook--targets-in-buffer))))
+                 (when targets
+                   (-> (make-org-runbook-file
+                        :name name
+                        :file file
+                        :targets targets)
+                       list)))))))
+
+(defun org-runbook--completing-read ()
+  "Prompt user for a runbook command."
+  (let ((command-map
+         (->> (org-runbook-commands)
+              (--map (org-runbook-file-targets it))
+              (-flatten)
+              (--map (cons (org-runbook-command-target-name it) it))
+              (ht<-alist))))
+    (when-let (key (completing-read "Runbook:" command-map nil t))
+      (ht-get command-map key))))
+
+(defun org-runbook--malformed-command-error-message (message command)
+  "Format MESSAGE as error representing that a COMMAND was malformed."
+  (concat message ": %s"))
+
+(defun org-runbook--validate-command (command)
+  "Validates COMMAND and throws errors if it doesn't match spec."
+  (when (not command) (error "Command cannot be nil"))
+  (org-runbook-command-p command))
+
+(defun org-runbook-view-command-action (target)
+  "View the selected command from helm.  Expects TARGET to be a `org-runbook-command-target'."
+  (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
+  (pcase-let* ((count 0)
+               (project-root (org-runbook--project-root))
+               ((cl-struct org-runbook-command-file subcommands) (org-runbook--shell-command-for-target target)))
     (when (get-buffer org-runbook-view-mode-buffer) (kill-buffer org-runbook-view-mode-buffer))
     (switch-to-buffer (or (get-buffer org-runbook-view-mode-buffer)
                           (generate-new-buffer org-runbook-view-mode-buffer)))
@@ -92,19 +176,20 @@ It is provided the output of `org-runbook--shell-command-for-candidate'."
     (org-runbook-view-mode)
     (setq-local inhibit-read-only t)
     (erase-buffer)
-    (->> commands
-         (-map (-lambda ((section &as &plist :heading :command))
-                 (setq count (1+ count))
-                 (--> (concat (s-repeat count "*")
-                              " "
-                              heading
-                              "\n\n"
-                              "#+BEGIN_SRC shell\n\n"
-                              command
-                              "\n#+END_SRC\n")
-                      (propertize it
-                                  'point-entered
-                                  (lambda (&rest args) (setq-local org-runbook-view--section section))))))
+    (->> subcommands
+         (-map
+          (pcase-lambda ((and section (cl-struct org-runbook-subcommand heading command)))
+            (setq count (1+ count))
+            (--> (concat (s-repeat count "*")
+                         " "
+                         heading
+                         "\n\n"
+                         "#+BEGIN_SRC shell\n\n"
+                         command
+                         "\n#+END_SRC\n")
+                 (propertize it
+                             'point-entered
+                             (lambda (&rest args) (setq-local org-runbook-view--section section))))))
          (s-join "\n")
          (insert))
     (setq-local inhibit-read-only nil)))
@@ -112,36 +197,47 @@ It is provided the output of `org-runbook--shell-command-for-candidate'."
 (defun org-runbook-execute-command-action (command)
   "Execute the org-runbook compile COMMAND from helm.
 Expects COMMAND to be of the form (:command :name)."
-  (funcall org-runbook-execute-command-action (org-runbook--shell-command-for-candidate command)))
+  (org-runbook--validate-command command)
+  (funcall org-runbook-execute-command-action (org-runbook--shell-command-for-target command)))
 
 (defun org-runbook-command-execute-eshell (command)
   "Execute the COMMAND in eshell."
-  (-let [(&plist :full-command) command]
+  (org-runbook--validate-command command)
+  (pcase-let ((cl-struct org-runbook-command full-command))
     (eshell-command full-command)))
 
 (defun org-runbook-goto-command-action (command)
-  "Goto the position referenced by COMMAND.  Expects COMMAND to be a plist of the form (:buffer :point)."
-  (let ((buffer (or (plist-get command :buffer) (error "Candidate must have :buffer")))
-        (point (or (plist-get command :point) (error "Candidate must have :point"))))
-    (switch-to-buffer buffer)
-    (goto-char point)
-    (pulse-momentary-highlight-one-line (point))))
+  "Goto the position referenced by COMMAND.
+Expects COMMAND to ether be a `org-runbook-subcommand'
+or a `org-runbook-command-target'."
+  (--> (pcase command
+         ((or (cl-struct org-runbook-subcommand (target (cl-struct org-runbook-command-target point buffer)))
+              (cl-struct org-runbook-command-target point buffer))
+          (list :buffer buffer :point point)))
+       (-let [(&plist :buffer :point) it]
+         (switch-to-buffer buffer)
+         (goto-char point)
+         (pulse-momentary-highlight-one-line (point)))))
 
-(defun org-runbook--command-at-point ()
-  "Walks up the org subtree in order to construct a plist containing the command at point."
-  (cl-loop while (re-search-forward (rx line-start "#+BEGIN_SRC" (* whitespace) "shell") nil t)
-           append
-           (let* ((headings (save-excursion
-                              (append
-                               (list (org-get-heading))
-                               (save-excursion
-                                 (cl-loop while (org-up-heading-safe)
-                                          append (list (org-get-heading)))))))
-                  (name (->> headings
-                             (-map 's-trim)
-                             (reverse)
-                             (s-join " >> "))))
-             (list (cons name (list :name name :buffer (current-buffer) :point (point)))))))
+(defun org-runbook--targets-in-buffer ()
+  "Get all targets by walking up the org subtree in order.
+Return `org-runbook-command-target'."
+  (save-excursion
+    (goto-char (point-min))
+    (cl-loop while (re-search-forward (rx line-start "#+BEGIN_SRC" (* whitespace) "shell") nil t)
+             append
+             (let* ((headings (save-excursion
+                                (append
+                                 (list (org-get-heading))
+                                 (save-excursion
+                                   (cl-loop while (org-up-heading-safe)
+                                            append (list (org-get-heading)))))))
+                    (name (->> headings
+                               (-map 's-trim)
+                               (reverse)
+                               (s-join " >> "))))
+               (list (make-org-runbook-command-target
+                      :name name :buffer (current-buffer) :point (point)))))))
 
 (defun org-runbook-switch-to-major-mode-file ()
   "Switch current buffer to the file corresponding to the current buffer's major mode."
@@ -179,10 +275,9 @@ Expects COMMAND to be of the form (:command :name)."
   (read-only-mode 1)
   (view-mode 1))
 
+(define-key org-runbook-view-mode-map (kbd "<return>") #'org-runbook-view--open-at-point)
 
 (defvar-local org-runbook-view--section nil "Tracks the section point is currently on in org-runbook-view-mode")
-
-(define-key org-runbook-view-mode-map (kbd "<return>") #'org-runbook-view--open-at-point)
 
 (defun org-runbook--project-root ()
   "Return the current project root if projectile is defined otherwise `default-directory'."
@@ -198,19 +293,17 @@ Expects COMMAND to be of the form (:command :name)."
 (defun org-runbook-view--open-at-point ()
   "Switch buffer to the file referenced at point in `org-runbook-view-mode'."
   (interactive)
-  (or (-some-> org-runbook-view--section org-runbook-goto-candidate-action)
+  (or (-some-> org-runbook-view--section org-runbook-goto-command-action)
       (user-error "No known section at point")))
 
-(defun org-runbook--shell-command-for-candidate (command)
-  "Return the full compile command for a COMMAND of the form:
-\t(:name :buffer :point)
-
-Output will be of the form (:full-command :commands (list (:heading :point :buffer :command)))."
+(defun org-runbook--shell-command-for-target (target)
+  "Return the `org-runbook-command' for a TARGET.
+TARGET is a `org-runbook-command-target'."
+  (unless (org-runbook-command-target-p target) (error "Unexpected type passed %s" target))
   (save-excursion
-    (-let [(&plist :name :buffer :point) command]
-      (push (plist-get command :name) dat-org--compile-history)
+    (pcase-let (((cl-struct org-runbook-command-target name buffer point) target))
       (let* ((project-root (org-runbook--project-root))
-             (blocks nil))
+             (subcommands nil))
         (set-buffer buffer)
         (goto-char point)
         (org-back-to-heading)
@@ -221,29 +314,33 @@ Output will be of the form (:full-command :commands (list (:heading :point :buff
                 (save-excursion
                   (while (and (ignore-errors (org-babel-next-src-block 1)) (string= (org-get-heading) start))
                     (push
-                     (list
+                     (make-org-runbook-subcommand
                       :heading (org-get-heading)
-                      :point (point)
-                      :buffer (current-buffer)
+                      :target (make-org-runbook-command-target
+                               :buffer (current-buffer)
+                               :point (point))
                       :command
                       (mustache-render
                        (buffer-substring
                         (save-excursion (forward-line 1) (point))
                         (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
                        (ht ("project_root" project-root))))
-                     blocks)
+                     subcommands)
                     (forward-line 1))))
               (setq at-root (not (org-up-heading-safe))))))
-        (list
+        (make-org-runbook-command
          :name name
+         :target (->> subcommands last car org-runbook-subcommand-target)
          :full-command
-         (->> blocks
-              (--map (plist-get it :command))
+         (->> subcommands
+              (--map (org-runbook-subcommand-command it))
+              (--filter it)
               (--map (s-trim it))
               (s-join ";\n"))
-         :commands blocks)))))
+         :subcommands subcommands)))))
 
-(add-to-list 'evil-motion-state-modes 'org-runbook-view-mode)
+(eval-after-load 'evil-mode
+  (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))
 
 (provide 'org-runbook)
 ;;; org-runbook.el ends here
