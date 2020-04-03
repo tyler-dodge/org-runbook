@@ -353,7 +353,8 @@ TARGET is a `org-runbook-command-target'."
          :subcommands subcommands)))))
 
 (eval-after-load 'evil-mode
-  (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))
+  (when (boundp 'evil-motion-state-modes)
+    (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode)))
 
 (provide 'org-runbook)
 ;;; org-runbook.el ends here
