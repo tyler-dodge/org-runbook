@@ -2,7 +2,8 @@
 
 ;; Author: Tyler Dodge
 ;; Version: 1.0
-;; Package-Requires: ((emacs "24") (seq "2.3") (f "0.20.0") (s "1.12.0") (dash "2.17.0"))
+;; Keywords: org, devops
+;; Package-Requires: ((emacs "24") (seq "2.3") (f "0.20.0") (s "1.12.0") (dash "2.17.0") (mustache "0.24") (ht "0.9"))
 ;; URL: https://github.com/tyler-dodge/org-runbook
 ;; Git-Repository: git://github.com/tyler-dodge/org-runbook.git
 ;; This program is free software; you can redistribute it and/or modify
@@ -22,14 +23,20 @@
 ;;; 
 ;;; Commentary:
 ;;; Code:
+
+;; External Dependencies
+(require 'seq)
+(require 'f)
+(require 's)
+(require 'dash)
+(require 'mustache)
+(require 'ht)
+
+;; Emacs Dependencies
 (require 'pulse)
 (require 'rx)
-(require 'f)
-(require 'dash)
 (require 'org)
 (require 'cl)
-(require 's)
-(require 'ht)
 
 (defgroup org-runbook nil "Org Runbook Options")
 
