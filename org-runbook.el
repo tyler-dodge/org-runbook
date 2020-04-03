@@ -36,9 +36,15 @@
 (require 'pulse)
 (require 'rx)
 (require 'org)
-(require 'cl)
+(require 'pcase)
+(require 'subr-x)
 
-(defgroup org-runbook nil "Org Runbook Options")
+
+;; Optional Dependencies
+(require 'projectile nil t)
+(require 'evil nil t)
+
+(defgroup org-runbook nil "Org Runbook Options" :group 'org)
 
 (defcustom org-runbook-files nil
   "Global files used by org runbook.
@@ -163,7 +169,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
 
 (defun org-runbook--malformed-command-error-message (message command)
   "Format MESSAGE as error representing that a COMMAND was malformed."
-  (concat message ": %s"))
+  (format (concat message ": %s") command))
 
 (defun org-runbook--validate-command (command)
   "Validates COMMAND and throws errors if it doesn't match spec."
@@ -175,7 +181,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
   (pcase-let* ((count 0)
                (project-root (org-runbook--project-root))
-               ((cl-struct org-runbook-command-file subcommands) (org-runbook--shell-command-for-target target)))
+               ((cl-struct org-runbook-command subcommands) (org-runbook--shell-command-for-target target)))
     (when (get-buffer org-runbook-view-mode-buffer) (kill-buffer org-runbook-view-mode-buffer))
     (switch-to-buffer (or (get-buffer org-runbook-view-mode-buffer)
                           (generate-new-buffer org-runbook-view-mode-buffer)))
