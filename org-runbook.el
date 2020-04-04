@@ -123,6 +123,8 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   :type 'function
   :group 'org-runbook)
 
+(defvar-local org-runbook-view--section nil "Tracks the section point is currently on in org-runbook-view-mode")
+
 (defun org-runbook-subcommand-list-p (arg)
   "Return non-nil if ARG is a list and every element is an org-runbook-command."
   (and (listp arg)
@@ -243,7 +245,6 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   "View the selected command from helm.  Expects TARGET to be a `org-runbook-command-target'."
   (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
   (pcase-let* ((count 0)
-               (project-root (org-runbook--project-root))
                ((cl-struct org-runbook-command subcommands) (org-runbook--shell-command-for-target target)))
     (when (get-buffer org-runbook-view-mode-buffer) (kill-buffer org-runbook-view-mode-buffer))
     (switch-to-buffer (or (get-buffer org-runbook-view-mode-buffer)
@@ -265,7 +266,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
                          "\n#+END_SRC\n")
                  (propertize it
                              'point-entered
-                             (lambda (&rest args) (setq-local org-runbook-view--section section))))))
+                             (lambda (&rest _) (setq-local org-runbook-view--section section))))))
          (s-join "\n")
          (insert))
     (-some->> (first subcommands) (setq-local org-runbook-view--section))
@@ -341,7 +342,6 @@ Return `org-runbook-command-target'."
 
 (define-key org-runbook-view-mode-map (kbd "<return>") #'org-runbook-view--open-at-point)
 
-(defvar-local org-runbook-view--section nil "Tracks the section point is currently on in org-runbook-view-mode")
 
 (defun org-runbook--project-root ()
   "Return the current project root if projectile is defined otherwise `default-directory'."
