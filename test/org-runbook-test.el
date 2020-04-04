@@ -26,7 +26,7 @@
     (should-error (org-runbook-execute))))
 
 (ert-deftest org-runbook-execute-one-command ()
-  "org-runbook-execute should execute the command referenced in the correspoding org file."
+  "org-runbook-execute should execute the command referenced in the corresponding org file."
   (with-temp-buffer
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
@@ -38,7 +38,7 @@
     (should (org-runbook-execute))))
 
 (ert-deftest org-runbook-view-one-command ()
-  "org-runbook-execute should execute the command referenced in the correspoding org file."
+  "org-runbook-execute should execute the command referenced in the corresponding org file."
   (with-temp-buffer
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
@@ -57,7 +57,7 @@
     (should (re-search-forward "echo test" nil t))))
 
 (ert-deftest org-runbook-goto-one-command ()
-  "org-runbook-execute should execute the command referenced in the correspoding org file."
+  "org-runbook-execute should execute the command referenced in the corresponding org file."
   (with-temp-buffer
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))

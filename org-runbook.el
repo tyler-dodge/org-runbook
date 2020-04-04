@@ -390,13 +390,14 @@ TARGET is a `org-runbook-command-target'."
               (setq at-root (not (org-up-heading-safe))))))
         (make-org-runbook-command
          :name name
-         :target (->> subcommands last car org-runbook-subcommand-target)
+         :target (-some->> subcommands last car org-runbook-subcommand-target)
          :full-command
-         (->> subcommands
-              (--map (org-runbook-subcommand-command it))
-              (--filter it)
-              (--map (s-trim it))
-              (s-join ";\n"))
+         (-some->> subcommands
+           (--filter it)
+           (--map (org-runbook-subcommand-command it))
+           (--filter it)
+           (--map (s-trim it))
+           (s-join ";\n"))
          :subcommands subcommands)))))
 
 (defun org-runbook--no-commands-error ()
