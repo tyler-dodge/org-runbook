@@ -31,7 +31,7 @@
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (org-runbook--output-configuration)
-    (setq-local
+    (setq
      completing-read-function
      (lambda (prompt collection &optional predicate require-match initial-input hist def inherit-input-method)
        (-> collection ht-keys first)))
@@ -43,7 +43,7 @@
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (org-runbook--output-configuration)
-    (setq-local
+    (setq
      completing-read-function
      (lambda (prompt collection &optional predicate require-match initial-input hist def inherit-input-method)
        (-> collection ht-keys first)))
@@ -62,7 +62,7 @@
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (org-runbook--output-configuration)
-    (setq-local
+    (setq
      completing-read-function
      (lambda (prompt collection &optional predicate require-match initial-input hist def inherit-input-method)
        (-> collection ht-keys first)))
