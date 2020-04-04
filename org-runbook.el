@@ -194,17 +194,9 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
               (-flatten)
               (--map (cons (org-runbook-command-target-name it) it))
               (ht<-alist))))
+    (when (eq (ht-size command-map) 0) (org-runbook--no-commands-error))
     (when-let (key (completing-read "Runbook:" command-map nil t))
       (ht-get command-map key))))
-
-(defun org-runbook--malformed-command-error-message (message command)
-  "Format MESSAGE as error representing that a COMMAND was malformed."
-  (format (concat message ": %s") command))
-
-(defun org-runbook--validate-command (command)
-  "Validates COMMAND and throws errors if it doesn't match spec."
-  (when (not command) (error "Command cannot be nil"))
-  (org-runbook-command-p command))
 
 (defun org-runbook-view-command-action (target)
   "View the selected command from helm.  Expects TARGET to be a `org-runbook-command-target'."
@@ -286,6 +278,12 @@ Return `org-runbook-command-target'."
   "Target for appending at the end of the runbook corresponding to the current buffer's major mode."
   (org-runbook--ensure-file (f-join org-runbook-project-directory (concat (symbol-name major-mode) ".org"))))
 
+(defun org-runbook-projectile-file ()
+  "Return the path for the org runbook file correspoding to the current projectile project."
+  (when (not (fboundp 'projectile-project-name))
+    (user-error "Projectile must be installed for org-runbook-projectile-file"))
+  (org-runbook--ensure-file (f-join org-runbook-project-directory (concat (projectile-project-name) ".org"))))
+
 (defun org-runbook--ensure-file (file)
   "Create the FILE if it doesn't exist.  Return the fully expanded FILE name."
   (let ((full-file (expand-file-name file)))
@@ -293,6 +291,7 @@ Return `org-runbook-command-target'."
       (mkdir (f-parent full-file) t)
       (f-touch full-file))
     full-file))
+
 (define-derived-mode org-runbook-view-mode org-mode "compile view"
   "Mode for viewing resolved org-runbook commands"
   (read-only-mode 1)
@@ -306,12 +305,6 @@ Return `org-runbook-command-target'."
   "Return the current project root if projectile is defined otherwise `default-directory'."
   (or (and (fboundp 'projectile-project-root) (projectile-project-root))
       default-directory))
-
-(defun org-runbook-projectile-file ()
-  "Return the path for the org runbook file correspoding to the current projectile project."
-  (when (not (fboundp 'projectile-project-name))
-    (user-error "Projectile must be installed for org-runbook-projectile-file"))
-  (org-runbook--ensure-file (f-join org-runbook-project-directory (concat (projectile-project-name) ".org"))))
 
 (defun org-runbook-view--open-at-point ()
   "Switch buffer to the file referenced at point in `org-runbook-view-mode'."
@@ -361,6 +354,20 @@ TARGET is a `org-runbook-command-target'."
               (--map (s-trim it))
               (s-join ";\n"))
          :subcommands subcommands)))))
+
+(defun org-runbook--no-commands-error ()
+  "Error representing that no commands were found for the current buffer."
+  (if (fboundp 'projectile-project-name)
+      (user-error "No Commands Defined For Runbook.  (Major Mode: %s, Project: %s)"
+                  (symbol-name major-mode)
+                  (projectile-project-name))
+    (user-error "No Commands Defined For Runbook.  (Major Mode: %s)"
+                (symbol-name major-mode))))
+
+(defun org-runbook--validate-command (command)
+  "Validates COMMAND and throws errors if it doesn't match spec."
+  (when (not command) (error "Command cannot be nil"))
+  (org-runbook-command-p command))
 
 (when (boundp 'evil-motion-state-modes)
   (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))
