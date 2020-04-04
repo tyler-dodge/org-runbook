@@ -33,3 +33,7 @@ install:
 script:
   # Run your tests
   - make test
+addons:
+  apt:
+    packages:
+      - libperl-dev
