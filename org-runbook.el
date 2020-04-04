@@ -114,7 +114,7 @@ with the `symbol-name' of the `major-mode' for the current buffer."
   :type 'directory)
 
 (defcustom org-runbook-view-mode-buffer "*compile-command*"
-  "Buffer used for `org-runbook-view-command-action' to display the resolved command."
+  "Buffer used for `org-runbook-view-target-action' to display the resolved command."
   :group 'org-runbook
   :type 'string)
 
@@ -161,25 +161,25 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
 (defun org-runbook-execute ()
   "Prompt for command completion and execute the selected command."
   (interactive)
-  (when-let (command (org-runbook--completing-read))
-    (org-runbook-execute-command-action command)))
+  (when-let (target (org-runbook--completing-read))
+    (org-runbook-execute-target-action target)))
 
 ;;;###autoload
 (defun org-runbook-view ()
   "Prompt for command completion and view the selected command."
   (interactive)
-  (when-let (command (org-runbook--completing-read))
-    (org-runbook-view-command-action command)))
+  (when-let (target (org-runbook--completing-read))
+    (org-runbook-view-target-action target)))
 
 ;;;###autoload
 (defun org-runbook-goto ()
   "Prompt for command completion and goto the selected command's location."
   (interactive)
-  (when-let (command (org-runbook--completing-read))
-    (org-runbook-goto-command-action command)))
+  (when-let (target (org-runbook--completing-read))
+    (org-runbook-goto-target-action target)))
 
 ;;;###autoload
-(defun org-runbook-commands ()
+(defun org-runbook-targets ()
   "Return the runbook commands corresponding to the current buffer."
   (save-excursion
     (let* ((major-mode-file (list (cons (symbol-name major-mode) (org-runbook-major-mode-file))))
@@ -233,7 +233,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
 (defun org-runbook--completing-read ()
   "Prompt user for a runbook command."
   (let ((command-map
-         (->> (org-runbook-commands)
+         (->> (org-runbook-targets)
               (--map (org-runbook-file-targets it))
               (-flatten)
               (--map (cons (org-runbook-command-target-name it) it))
@@ -242,7 +242,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
     (when-let (key (completing-read "Runbook:" command-map nil t))
       (ht-get command-map key))))
 
-(defun org-runbook-view-command-action (target)
+(defun org-runbook-view-target-action (target)
   "View the selected command from helm.  Expects TARGET to be a `org-runbook-command-target'."
   (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
   (pcase-let* ((count 0)
@@ -273,7 +273,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
     (-some->> (first subcommands) (setq-local org-runbook-view--section))
     (setq-local inhibit-read-only nil)))
 
-(defun org-runbook-execute-command-action (command)
+(defun org-runbook-execute-target-action (command)
   "Execute the `org-runbook' compile COMMAND from helm.
 Expects COMMAND to be of the form (:command :name)."
   (org-runbook--validate-command command)
@@ -285,7 +285,7 @@ Expects COMMAND to be of the form (:command :name)."
   (pcase-let (((cl-struct org-runbook-command full-command) command))
     (eshell-command full-command)))
 
-(defun org-runbook-goto-command-action (command)
+(defun org-runbook-goto-target-action (command)
   "Goto the position referenced by COMMAND.
 Expects COMMAND to ether be a `org-runbook-subcommand'
 or a `org-runbook-command-target'."
@@ -352,7 +352,7 @@ Return `org-runbook-command-target'."
 (defun org-runbook-view--open-at-point ()
   "Switch buffer to the file referenced at point in `org-runbook-view-mode'."
   (interactive)
-  (or (-some-> org-runbook-view--section org-runbook-goto-command-action)
+  (or (-some-> org-runbook-view--section org-runbook-goto-target-action)
       (user-error "No known section at point")))
 
 (defun org-runbook--shell-command-for-target (target)

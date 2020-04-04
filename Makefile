@@ -7,7 +7,6 @@ deps:
 	${CASK} install
 
 test: clean-elc
-	${MAKE} unit
 	${MAKE} compile
 	${MAKE} unit
 	${MAKE} clean-elc
