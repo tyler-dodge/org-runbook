@@ -38,6 +38,7 @@
 (ert-deftest org-runbook-execute-no-commands ()
   "org-runbook-execute should throw an error when no commands are available"
   (with-temp-buffer
+    (fundamental-mode)
     (setq-local org-runbook-modes-directory (relative-to-test-directory "no-commands"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "no-commands"))
     (org-runbook--output-configuration)
@@ -52,15 +53,17 @@
 (ert-deftest org-runbook-execute-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
   (with-temp-buffer
+    (fundamental-mode)
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (org-runbook--output-configuration)
     (with-completing-read #'org-runbook--test-first-target
-        (should (org-runbook-execute)))))
+      (should (org-runbook-execute)))))
 
 (ert-deftest org-runbook-view-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
   (with-temp-buffer
+    (fundamental-mode)
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (org-runbook--output-configuration)
@@ -77,6 +80,7 @@
 (ert-deftest org-runbook-goto-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
   (with-temp-buffer
+    (fundamental-mode)
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (org-runbook--output-configuration)
