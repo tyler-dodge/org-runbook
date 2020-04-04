@@ -71,6 +71,7 @@
       (org-runbook-view)
       (should (eq (get-buffer org-runbook-view-mode-buffer) (current-buffer)))
       (goto-char (point-min))
+      (message "org-runbook-view buffer: %s" (buffer-string))
       (should (re-search-forward "echo test" nil t))
       (org-runbook-view--open-at-point)
       (should (s-contains-p "fundamental-mode.org" (buffer-file-name)))
