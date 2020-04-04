@@ -82,6 +82,7 @@
 (require 'org)
 (require 'pcase)
 (require 'subr-x)
+(require 'eshell)
 
 
 ;; Optional Dependencies
