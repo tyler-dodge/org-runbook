@@ -57,8 +57,11 @@ All files in [org-runbook-files] are also pulled.
 
 
 ### Placeholders
-Commands will resolve placeholders before evaluating.  Currently the only available placeholder is {{project_root}}
-which corresponds to the projectile-project-root of the buffer that called `org-runbook-execute'
+Commands will resolve placeholders before evaluating.
+
+* {{project_root}} - the projectile-project-root of the buffer that called `org-runbook-execute'
+
+* {{current_file}} - the file that the buffer that called org-runbook-execute was visiting. If the the buffer is a non file buffer, current_file is default-directory
 
 ### Interactive Commands
 

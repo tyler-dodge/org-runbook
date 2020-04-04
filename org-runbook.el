@@ -360,9 +360,10 @@ TARGET is a `org-runbook-command-target'."
   (unless (org-runbook-command-target-p target) (error "Unexpected type passed %s" target))
   (save-excursion
     (pcase-let (((cl-struct org-runbook-command-target name buffer point) target))
+      (set-buffer buffer)
       (let* ((project-root (org-runbook--project-root))
+             (file-name (or (buffer-file-name buffer) default-directory))
              (subcommands nil))
-        (set-buffer buffer)
         (goto-char point)
         (org-back-to-heading)
         (save-excursion
@@ -382,7 +383,8 @@ TARGET is a `org-runbook-command-target'."
                        (buffer-substring
                         (save-excursion (forward-line 1) (point))
                         (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
-                       (ht ("project_root" project-root))))
+                       (ht ("project_root" project-root)
+                           ("current_file" file-name))))
                      subcommands)
                     (forward-line 1))))
               (setq at-root (not (org-up-heading-safe))))))
