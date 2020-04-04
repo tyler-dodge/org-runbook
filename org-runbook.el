@@ -238,7 +238,7 @@ Expects COMMAND to be of the form (:command :name)."
 (defun org-runbook-command-execute-eshell (command)
   "Execute the COMMAND in eshell."
   (org-runbook--validate-command command)
-  (pcase-let ((cl-struct org-runbook-command full-command))
+  (pcase-let (((cl-struct org-runbook-command full-command) command))
     (eshell-command full-command)))
 
 (defun org-runbook-goto-command-action (command)
