@@ -2,14 +2,16 @@
 
 (require 'org-runbook (expand-file-name "org-runbook.el") t)
 
-
 (defmacro with-completing-read (override &rest prog)
   (declare (indent 1))
-  `(let ((completing-read (symbol-function 'org-runbook--completing-read)))
+  `(let ((completing-read (symbol-function 'org-runbook--completing-read))
+         (execute-command-action org-runbook-execute-command-action))
      (unwind-protect
          (progn
+           (setq org-runbook-execute-command-action #'org-runbook-command-execute-message)
            (fset 'org-runbook--completing-read ,override)
            ,@prog)
+       (setq org-runbook-execute-command-action execute-command-action)
        (fset 'org-runbook--completing-read completing-read))))
 
 (ert-deftest org-runbook-exists ()
@@ -22,6 +24,11 @@
          (f-join it file))
        file)
    expand-file-name))
+
+(defun org-runbook-command-execute-message (command)
+  (org-runbook--validate-command command)
+  (pcase-let (((cl-struct org-runbook-command full-command) command))
+    (message "%s" full-command)))
 
 (defun org-runbook--output-configuration ()
   (message "modes directory: %s, project directory: %s"
