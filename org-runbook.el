@@ -152,7 +152,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
       (cl-loop for file in org-files
                append
                (-let* (((name . file) file)
-                       (targets (when (f-exists-p file)
+                       (targets (when (-some-> file f-exists-p)
                                   (set-buffer (find-file-noselect file))
                                   (org-runbook--targets-in-buffer))))
                  (when targets
