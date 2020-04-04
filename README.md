@@ -60,6 +60,7 @@ It is provided as a single argument the plist output of org-runbook--shell-comma
 ## Contributing
 
 Contributions welcome, but forking preferred. 
+I plan to actively maintain this, but I will be prioritizing features that impact me first.
 
 I'll look at most pull requests eventually, but there is no SLA on those being accepted. 
     

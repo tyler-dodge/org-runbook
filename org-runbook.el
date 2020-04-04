@@ -110,25 +110,28 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   (file nil :type stringp :read-only t)
   (targets nil :read-only t :type org-runbook-command-list-p))
 
-
+;;;###autoload
 (defun org-runbook-execute ()
   "Prompt for command completion and execute the selected command."
   (interactive)
   (when-let (command (org-runbook--completing-read))
     (org-runbook-execute-command-action command)))
 
+;;;###autoload
 (defun org-runbook-view ()
   "Prompt for command completion and view the selected command."
   (interactive)
   (when-let (command (org-runbook--completing-read))
     (org-runbook-view-command-action command)))
 
+;;;###autoload
 (defun org-runbook-goto ()
   "Prompt for command completion and goto the selected command's location."
   (interactive)
   (when-let (command (org-runbook--completing-read))
     (org-runbook-goto-command-action command)))
 
+;;;###autoload
 (defun org-runbook-commands ()
   "Return the runbook commands corresponding to the current buffer."
   (save-excursion
@@ -155,6 +158,30 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
                         :file file
                         :targets targets)
                        list)))))))
+
+;;;###autoload
+(defun org-runbook-switch-to-major-mode-file ()
+  "Switch current buffer to the file corresponding to the current buffer's major mode."
+  (interactive)
+  (find-file (org-runbook-major-mode-file)))
+
+;;;###autoload
+(defun org-runbook-switch-to-projectile-file ()
+  "Switch current buffer to the file corresponding to the current buffer's projectile mode."
+  (interactive)
+  (find-file (org-runbook-projectile-file)))
+
+;;;###autoload
+(defun org-runbook-capture-target-major-mode-file ()
+  "Switch current buffer to the file corresponding to the current buffer's major mode."
+  (org-runbook-switch-to-major-mode-file)
+  (goto-char (point-max)))
+
+;;;###autoload
+(defun org-runbook-capture-target-projectile-file ()
+  "Target for appending at the end of the runbook corresponding to the current buffer's projectile project."
+  (org-runbook-switch-to-projectile-file)
+  (goto-char (point-max)))
 
 (defun org-runbook--completing-read ()
   "Prompt user for a runbook command."
@@ -251,26 +278,6 @@ Return `org-runbook-command-target'."
                                (s-join " >> "))))
                (list (make-org-runbook-command-target
                       :name name :buffer (current-buffer) :point (point)))))))
-
-(defun org-runbook-switch-to-major-mode-file ()
-  "Switch current buffer to the file corresponding to the current buffer's major mode."
-  (interactive)
-  (find-file (org-runbook-major-mode-file)))
-
-(defun org-runbook-switch-to-projectile-file ()
-  "Switch current buffer to the file corresponding to the current buffer's projectile mode."
-  (interactive)
-  (find-file (org-runbook-projectile-file)))
-
-(defun org-runbook-capture-target-major-mode-file ()
-  "Switch current buffer to the file corresponding to the current buffer's major mode."
-  (org-runbook-switch-to-major-mode-file)
-  (goto-char (point-max)))
-
-(defun org-runbook-capture-target-projectile-file ()
-  "Target for appending at the end of the runbook corresponding to the current buffer's projectile project."
-  (org-runbook-switch-to-projectile-file)
-  (goto-char (point-max)))
 
 (defun org-runbook-major-mode-file ()
   "Target for appending at the end of the runbook corresponding to the current buffer's major mode."
