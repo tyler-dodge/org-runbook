@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; 
 ;;; 
@@ -87,6 +87,7 @@
 
 ;; Optional Dependencies
 (require 'projectile nil t)
+(declare-function project-name "ext:projectile.el" (&optional project))
 (require 'evil nil t)
 
 (defgroup org-runbook nil "Org Runbook Options" :group 'org)
@@ -118,7 +119,7 @@ with the `symbol-name' of the `major-mode' for the current buffer."
   :group 'org-runbook
   :type 'string)
 
-(defcustom org-runbook-execute-command-action #'org-runbook-command-execute-eshell
+(defcustom org-runbook-execute-command-action #'org-runbook-command-execute-shell
   "Function called to handle executing the given runbook.
 It is provided as a single argument the plist output of `org-runbook--shell-command-for-target'."
   :type 'function
@@ -283,7 +284,15 @@ Expects COMMAND to be of the form (:command :name)."
   "Execute the COMMAND in eshell."
   (org-runbook--validate-command command)
   (pcase-let (((cl-struct org-runbook-command full-command) command))
+    ;; Intentionally not shell quoting full-command since it's a script
     (eshell-command full-command)))
+
+(defun org-runbook-command-execute-shell (command)
+  "Execute the COMMAND in shell."
+  (org-runbook--validate-command command)
+  (pcase-let (((cl-struct org-runbook-command full-command) command))
+    ;; Intentionally not shell quoting full-command since it's a script
+    (shell-command full-command)))
 
 (defun org-runbook-goto-target-action (command)
   "Goto the position referenced by COMMAND.
@@ -324,24 +333,27 @@ Return `org-runbook-command-target'."
 
 (defun org-runbook-projectile-file ()
   "Return the path for the org runbook file correspoding to the current projectile project."
-  (when (not (fboundp 'projectile-project-name))
+  (unless (fboundp 'projectile-project-name)
     (user-error "Projectile must be installed for org-runbook-projectile-file"))
   (org-runbook--ensure-file (f-join org-runbook-project-directory (concat (projectile-project-name) ".org"))))
 
 (defun org-runbook--ensure-file (file)
   "Create the FILE if it doesn't exist.  Return the fully expanded FILE name."
   (let ((full-file (expand-file-name file)))
-    (when (not (f-exists-p full-file))
+    (unless (f-exists-p full-file)
       (mkdir (f-parent full-file) t)
       (f-touch full-file))
     full-file))
+
+(defvar org-runbook-view-mode-map
+  (-doto (make-sparse-keymap)
+    (define-key (kbd "<return>") #'org-runbook-view--open-at-point)))
 
 (define-derived-mode org-runbook-view-mode org-mode "compile view"
   "Mode for viewing resolved org-runbook commands"
   (read-only-mode 1)
   (view-mode 1))
 
-(define-key org-runbook-view-mode-map (kbd "<return>") #'org-runbook-view--open-at-point)
 
 
 (defun org-runbook--project-root ()
@@ -412,7 +424,7 @@ TARGET is a `org-runbook-command-target'."
 
 (defun org-runbook--validate-command (command)
   "Validates COMMAND and throws errors if it doesn't match spec."
-  (when (not command) (error "Command cannot be nil"))
+  (unless command (error "Command cannot be nil"))
   (org-runbook-command-p command))
 
 (when (boundp 'evil-motion-state-modes)
