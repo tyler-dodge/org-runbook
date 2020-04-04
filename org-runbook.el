@@ -227,6 +227,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
                              (lambda (&rest args) (setq-local org-runbook-view--section section))))))
          (s-join "\n")
          (insert))
+    (-some->> (first subcommands) (setq-local org-runbook-view--section))
     (setq-local inhibit-read-only nil)))
 
 (defun org-runbook-execute-command-action (command)
