@@ -1,9 +1,9 @@
-;;; org-runbook.el --- org mode for runbooks. -*- lexical-binding: t -*-
+;;; org-runbook.el --- Org mode for runbooks -*- lexical-binding: t -*-
 
 ;; Author: Tyler Dodge
 ;; Version: 1.0
-;; Keywords: org, devops
-;; Package-Requires: ((emacs "24") (seq "2.3") (f "0.20.0") (s "1.12.0") (dash "2.17.0") (mustache "0.24") (ht "0.9"))
+;; Keywords: convenience, processes, terminals, files
+;; Package-Requires: ((emacs "25.1") (seq "2.3") (f "0.20.0") (s "1.12.0") (dash "2.17.0") (mustache "0.24") (ht "0.9"))
 ;; URL: https://github.com/tyler-dodge/org-runbook
 ;; Git-Repository: git://github.com/tyler-dodge/org-runbook.git
 ;; This program is free software; you can redistribute it and/or modify
@@ -22,6 +22,9 @@
 ;;; 
 ;;; 
 ;;; Commentary:
+;; org-runbook provides heirarchical runbook commands from org file accessible directly from buffers.
+;; Main entry points include `org-runbook-execute', `org-runbook-switch-to-major-mode-file',
+;; and `org-runbook-switch-to-projectile-file'
 ;;; Code:
 
 ;; External Dependencies
@@ -359,9 +362,8 @@ TARGET is a `org-runbook-command-target'."
               (s-join ";\n"))
          :subcommands subcommands)))))
 
-(eval-after-load 'evil-mode
-  (when (boundp 'evil-motion-state-modes)
-    (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode)))
+(when (boundp 'evil-motion-state-modes)
+  (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))
 
 (provide 'org-runbook)
 ;;; org-runbook.el ends here

@@ -12,7 +12,7 @@ test: clean-elc
 	${MAKE} unit
 	${MAKE} clean-elc
 
-unit: deps
+unit:
 	${CASK} exec ert-runner
 
 compile:
