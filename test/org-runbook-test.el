@@ -12,11 +12,17 @@
        file)
    expand-file-name))
 
+(defun org-runbook--output-configuration ()
+  (message "modes directory: %s, project directory: %s"
+           org-runbook-modes-directory
+           org-runbook-project-directory))
+
 (ert-deftest org-runbook-execute-no-commands ()
   "org-runbook-execute should throw an error when no commands are available"
   (with-temp-buffer
     (setq-local org-runbook-modes-directory (relative-to-test-directory "no-commands"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "no-commands"))
+    (org-runbook--output-configuration)
     (should-error (org-runbook-execute))))
 
 (ert-deftest org-runbook-execute-one-command ()
@@ -24,6 +30,7 @@
   (with-temp-buffer
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+    (org-runbook--output-configuration)
     (setq-local
      completing-read-function
      (lambda (prompt collection &optional predicate require-match initial-input hist def inherit-input-method)
@@ -35,6 +42,7 @@
   (with-temp-buffer
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+    (org-runbook--output-configuration)
     (setq-local
      completing-read-function
      (lambda (prompt collection &optional predicate require-match initial-input hist def inherit-input-method)
@@ -53,6 +61,7 @@
   (with-temp-buffer
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+    (org-runbook--output-configuration)
     (setq-local
      completing-read-function
      (lambda (prompt collection &optional predicate require-match initial-input hist def inherit-input-method)
