@@ -5,12 +5,12 @@
 
 (defmacro with-completing-read (override &rest prog)
   (declare (indent 1))
-  `(let ((completing-read (symbol-function 'completing-read)))
+  `(let ((completing-read (symbol-function 'org-runbook--completing-read)))
      (unwind-protect
          (progn
-           (fset 'completing-read ,override)
+           (fset 'org-runbook--completing-read ,override)
            ,@prog)
-       (fset 'completing-read completing-read))))
+       (fset 'org-runbook--completing-read completing-read))))
 
 (ert-deftest org-runbook-exists ()
   "Sanity check to make sure expected symbols are exported."
@@ -36,15 +36,20 @@
     (org-runbook--output-configuration)
     (should-error (org-runbook-execute))))
 
+(defun org-runbook--test-first-target ()
+  (->> (org-runbook-commands)
+       (-map #'org-runbook-file-targets)
+       (-flatten)
+       (car)))
+
 (ert-deftest org-runbook-execute-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
   (with-temp-buffer
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (org-runbook--output-configuration)
-    (with-completing-read (lambda (prompt collection &optional predicate require-match initial-input hist def inherit-input-method)
-                            (-> collection ht-keys first))
-      (should (org-runbook-execute)))))
+    (with-completing-read #'org-runbook--test-first-target
+        (should (org-runbook-execute)))))
 
 (ert-deftest org-runbook-view-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
@@ -52,8 +57,7 @@
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (org-runbook--output-configuration)
-    (with-completing-read (lambda (prompt collection &optional predicate require-match initial-input hist def inherit-input-method)
-                            (-> collection ht-keys first))
+    (with-completing-read #'org-runbook--test-first-target
       (org-runbook-view)
       (should (eq (get-buffer org-runbook-view-mode-buffer) (current-buffer)))
       (goto-char (point-min))
@@ -69,8 +73,7 @@
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (org-runbook--output-configuration)
-    (with-completing-read (lambda (prompt collection &optional predicate require-match initial-input hist def inherit-input-method)
-                            (-> collection ht-keys first))
+    (with-completing-read #'org-runbook--test-first-target
       (org-runbook-goto)
       (should (s-contains-p "fundamental-mode.org" (buffer-file-name)))
       (goto-char (point-min))
