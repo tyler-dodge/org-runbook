@@ -290,9 +290,9 @@ Expects COMMAND to be of the form (:command :name)."
 (defun org-runbook-command-execute-shell (command)
   "Execute the COMMAND in shell."
   (org-runbook--validate-command command)
-  (pcase-let (((cl-struct org-runbook-command full-command) command))
+  (pcase-let (((cl-struct org-runbook-command full-command name) command))
     ;; Intentionally not shell quoting full-command since it's a script
-    (shell-command full-command)))
+    (async-shell-command full-command (concat "*" name "*"))))
 
 (defun org-runbook-goto-target-action (command)
   "Goto the position referenced by COMMAND.
@@ -373,10 +373,10 @@ TARGET is a `org-runbook-command-target'."
   (unless (org-runbook-command-target-p target) (error "Unexpected type passed %s" target))
   (save-excursion
     (pcase-let (((cl-struct org-runbook-command-target name buffer point) target))
-      (set-buffer buffer)
       (let* ((project-root (org-runbook--project-root))
-             (file-name (or (buffer-file-name buffer) default-directory))
+             (source-buffer-file-name (or (buffer-file-name buffer) default-directory))
              (subcommands nil))
+        (set-buffer buffer)
         (goto-char point)
         (org-back-to-heading)
         (save-excursion
@@ -397,7 +397,7 @@ TARGET is a `org-runbook-command-target'."
                         (save-excursion (forward-line 1) (point))
                         (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
                        (ht ("project_root" project-root)
-                           ("current_file" file-name))))
+                           ("current_file" source-buffer-file-name))))
                      subcommands)
                     (forward-line 1))))
               (setq at-root (not (org-up-heading-safe))))))
