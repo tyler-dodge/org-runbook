@@ -92,8 +92,8 @@
 
 (defcustom org-runbook-files nil
   "Global files used by org runbook.
-When resolving commands for the current buffer, org-runbook appends
-org-runbook-files with the major mode org file and the projectile
+When resolving commands for the current buffer, `org-runbook' appends
+`org-runbook-files' with the major mode org file and the projectile
 org file."
   :group 'org-runbook
   :type 'list)
@@ -101,7 +101,7 @@ org file."
 (defcustom org-runbook-project-directory (expand-file-name (f-join user-emacs-directory "runbook" "projects"))
   "Directory used to lookup the org file corresponding to the current project.
 `org-runbook-projectile-file' joins `org-runbook-project-directory'
-with the `projectile-project-name' for the current buffer."
+with the function `projectile-project-name' for the current buffer."
   :group 'org-runbook
   :type 'directory)
 
@@ -272,7 +272,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
     (setq-local inhibit-read-only nil)))
 
 (defun org-runbook-execute-command-action (command)
-  "Execute the org-runbook compile COMMAND from helm.
+  "Execute the `org-runbook' compile COMMAND from helm.
 Expects COMMAND to be of the form (:command :name)."
   (org-runbook--validate-command command)
   (funcall org-runbook-execute-command-action (org-runbook--shell-command-for-target command)))
