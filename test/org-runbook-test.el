@@ -15,8 +15,12 @@
        file)
    expand-file-name))
 
+(defvar org-runbook-command-last-command nil "test variable for `org-runbook-command-execute-message'")
 (defun org-runbook-command-execute-message (command)
+  "Stubbed out execute-message function. formats COMMAND and outputs as a message. 
+Also sets `org-runbook-command-last-command'"
   (org-runbook--validate-command command)
+  (setq org-runbook-command-last-command command)
   (pcase-let (((cl-struct org-runbook-command full-command) command))
     (message "%s" full-command)))
 
@@ -50,7 +54,8 @@
     (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-message)
     (org-runbook--output-configuration)
     (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
-    (should (org-runbook-execute))))
+    (should (org-runbook-execute))
+    (should (string= (org-runbook-command-full-command org-runbook-command-last-command) "echo test"))))
 
 (ert-deftest org-runbook-view-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
