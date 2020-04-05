@@ -152,15 +152,15 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
 
 (defun org-runbook--completing-read ()
   "Prompt user for a runbook command."
-  (let ((command-map
+  (let ((target-map
          (->> (org-runbook-targets)
               (--map (org-runbook-file-targets it))
               (-flatten)
               (--map (cons (org-runbook-command-target-name it) it))
               (ht<-alist))))
-    (when (eq (ht-size command-map) 0) (org-runbook--no-commands-error))
-    (when-let (key (completing-read "Runbook:" command-map nil t))
-      (ht-get command-map key))))
+    (when (eq (ht-size target-map) 0) (org-runbook--no-commands-error))
+    (when-let (key (completing-read "Runbook:" target-map nil t))
+      (ht-get target-map key))))
 
 ;;;###autoload
 (defun org-runbook-execute ()
@@ -312,7 +312,11 @@ Return `org-runbook-command-target'."
                                (reverse)
                                (s-join " >> "))))
                (list (org-runbook-command-target-create
-                      :name name :buffer (current-buffer) :point (point)))))))
+                      :name name
+                      :buffer (current-buffer)
+                      :point (save-excursion
+                               (unless (org-at-heading-p) (re-search-backward (regexp-quote (org-get-heading))))
+                               (point))))))))
 
 (defun org-runbook-major-mode-file ()
   "Target for appending at the end of the runbook corresponding to the current buffer's major mode."
@@ -365,17 +369,18 @@ TARGET is a `org-runbook-command-target'."
              (subcommands nil))
         (set-buffer buffer)
         (goto-char point)
-        (org-back-to-heading)
+        (unless (org-at-heading-p) (org-back-to-heading))
         (save-excursion
           (let* ((at-root nil))
             (while (not at-root)
               (let* ((start (org-get-heading)))
                 (save-excursion
-                  (while (and (ignore-errors (org-babel-next-src-block 1) t)
+                  (end-of-line)
+                  (while (and (re-search-forward (rx "#+BEGIN_SRC" (* whitespace) "shell") nil t)
                               (string= (org-get-heading) start))
                     (push
                      (org-runbook-subcommand-create
-                      :heading (org-get-heading)
+                      :heading start
                       :target (org-runbook-command-target-create
                                :buffer (current-buffer)
                                :point (point))

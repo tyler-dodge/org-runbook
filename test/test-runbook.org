@@ -17,6 +17,6 @@
 
 ** Test Data B
  #+BEGIN_SRC shell
- echo test-runbook-2-B
+echo test-runbook-2-B
  #+END_SRC
 

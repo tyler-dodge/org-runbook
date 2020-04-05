@@ -61,6 +61,7 @@
   (if (eq (length body) 1)
       (prog1 (car body) (message "%s" (car body)))
     (prog1 (car (last body)) (apply 'message body))))
+
 (ert-deftest org-runbook-execute-command-from-org-runbook-files ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
   (with-temp-buffer
@@ -73,7 +74,8 @@
     (setq-local completing-read-function (lambda (_ collection &rest _)
                                            (-some->> collection (ht-keys)
                                                      (--first (string= it "Test Data 2 >> Test Data B")))))
-    (should (org-runbook-execute))))
+    (should (org-runbook-execute))
+    (should (string= (org-runbook-command-full-command org-runbook-command-last-command) "echo test-runbook-2-B"))))
 
 (ert-deftest org-runbook-goto-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
