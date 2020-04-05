@@ -7,6 +7,8 @@ deps:
 	${CASK} install
 
 test: clean-elc
+	# Running unit test before compilation to get coverage
+	${MAKE} unit
 	${MAKE} compile
 	${MAKE} unit
 	${MAKE} clean-elc
