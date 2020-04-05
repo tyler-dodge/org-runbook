@@ -193,20 +193,21 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
                                           (org-runbook-projectile-file)))))
            (global-files (--map (cons it it) org-runbook-files))
            (org-files
-            (seq-uniq (append major-mode-file current-buffer-file projectile-file global-files)
+            (seq-uniq (-flatten (append major-mode-file current-buffer-file projectile-file global-files))
                       (lambda (lhs rhs) (string= (cdr lhs) (cdr rhs))))))
       (cl-loop for file in org-files
                append
-               (-let* (((name . file) file)
-                       (targets (when (-some-> file f-exists-p)
-                                  (set-buffer (find-file-noselect file))
-                                  (org-runbook--targets-in-buffer))))
-                 (when targets
-                   (-> (org-runbook-file-create
-                        :name name
-                        :file file
-                        :targets targets)
-                       list)))))))
+               (save-excursion
+                 (-let* (((name . file) file)
+                         (targets (when (-some-> file f-exists-p)
+                                    (set-buffer (or (find-buffer-visiting file) (find-file-noselect file)))
+                                    (org-runbook--targets-in-buffer))))
+                   (when targets
+                     (-> (org-runbook-file-create
+                          :name name
+                          :file file
+                          :targets targets)
+                         list))))))))
 
 ;;;###autoload
 (defun org-runbook-switch-to-major-mode-file ()
@@ -261,11 +262,10 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
          (insert))
     (setq-local inhibit-read-only nil)))
 
-(defun org-runbook-execute-target-action (command)
-  "Execute the `org-runbook' compile COMMAND from helm.
+(defun org-runbook-execute-target-action (target)
+  "Execute the `org-runbook' compile TARGET from helm.
 Expects COMMAND to be of the form (:command :name)."
-  (org-runbook--validate-command command)
-  (funcall org-runbook-execute-command-action (org-runbook--shell-command-for-target command)))
+  (funcall org-runbook-execute-command-action (org-runbook--shell-command-for-target target)))
 
 (defun org-runbook-command-execute-eshell (command)
   "Execute the COMMAND in eshell."
@@ -299,7 +299,7 @@ or a `org-runbook-command-target'."
 Return `org-runbook-command-target'."
   (save-excursion
     (goto-char (point-min))
-    (cl-loop while (re-search-forward (rx line-start "#+BEGIN_SRC" (* whitespace) "shell") nil t)
+    (cl-loop while (re-search-forward (rx line-start (* whitespace) "#+BEGIN_SRC" (* whitespace) "shell") nil t)
              append
              (let* ((headings (save-excursion
                                 (append
@@ -413,7 +413,8 @@ TARGET is a `org-runbook-command-target'."
 (defun org-runbook--validate-command (command)
   "Validates COMMAND and throws errors if it doesn't match spec."
   (unless command (error "Command cannot be nil"))
-  (org-runbook-command-p command))
+  (unless (org-runbook-command-p command) (error "Unexepected type for command %s" command))
+  t)
 
 (when (boundp 'evil-motion-state-modes)
   (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))
