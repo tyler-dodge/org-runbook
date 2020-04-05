@@ -19,7 +19,6 @@ env:
   - EMACS_VERSION=snapshot
 before_install:
   # Configure $PATH: Executables are installed to $HOME/bin
-  - gem install undercover
   - export PATH="$HOME/bin:$PATH"
   # Download the makefile to emacs-travis.mk
   - wget 'https://raw.githubusercontent.com/flycheck/emacs-travis/master/emacs-travis.mk'
@@ -34,7 +33,6 @@ install:
 script:
   # Run your tests
   - make test
-  - undercover
 addons:
   apt:
     packages:
