@@ -1,18 +1,8 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'cl-lib)
+(require 'org)
 (require 'org-runbook (expand-file-name "org-runbook.el"))
-
-(defmacro with-completing-read (override &rest prog)
-  (declare (indent 1))
-  `(let ((completing-read (symbol-function 'org-runbook--completing-read))
-         (execute-command-action org-runbook-execute-command-action))
-     (unwind-protect
-         (progn
-           (setq org-runbook-execute-command-action #'org-runbook-command-execute-message)
-           (fset 'org-runbook--completing-read ,override)
-           ,@prog)
-       (setq org-runbook-execute-command-action execute-command-action)
-       (fset 'org-runbook--completing-read completing-read))))
 
 (ert-deftest org-runbook-exists ()
   "Sanity check to make sure expected symbols are exported."
@@ -31,9 +21,10 @@
     (message "%s" full-command)))
 
 (defun org-runbook--output-configuration ()
-  (message "modes directory: %s, project directory: %s"
+  (message "modes directory: %s, project directory: %s, org-version: %s"
            org-runbook-modes-directory
-           org-runbook-project-directory))
+           org-runbook-project-directory
+           (org-version)))
 
 (ert-deftest org-runbook-execute-no-commands ()
   "org-runbook-execute should throw an error when no commands are available"
@@ -44,18 +35,11 @@
     (org-runbook--output-configuration)
     (should-error (org-runbook-execute))))
 
-(defun -message (&rest body)
-  (if (eq (length body) 1)
-      (prog1 (car body) (message "%s" (car body)))
-    (prog1 (car (last body)) (apply 'message body))))
-
 (defun org-runbook--test-first-target ()
   (->> (org-runbook-targets)
-       (-message)
        (-map #'org-runbook-file-targets)
        (-flatten)
-       (car)
-       (-message)))
+       (car)))
 
 (ert-deftest org-runbook-execute-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
@@ -63,28 +47,30 @@
     (fundamental-mode)
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+    (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-message)
     (org-runbook--output-configuration)
-    (with-completing-read #'org-runbook--test-first-target
-      (should (org-runbook-execute)))))
+    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+    (should (org-runbook-execute))))
 
-;; (ert-deftest org-runbook-view-one-command ()
-;;   "org-runbook-execute should execute the command referenced in the corresponding org file."
-;;   (with-temp-buffer
-;;     (fundamental-mode)
-;;     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
-;;     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
-;;     (org-runbook--output-configuration)
-;;     (with-completing-read #'org-runbook--test-first-target
-;;       (org-runbook-view)
-;;       (message "View Source::")
-;;       (-message (buffer-string))
-;;       (should (eq (get-buffer org-runbook-view-mode-buffer) (current-buffer)))
-;;       (goto-char (point-min))
-;;       (should (re-search-forward "echo test" nil t))
-;;       (org-runbook-view--open-at-point)
-;;       (should (s-contains-p "fundamental-mode.org" (buffer-file-name)))
-;;       (goto-char (point-min))
-;;       (should (re-search-forward "echo test" nil t)))))
+(ert-deftest org-runbook-view-one-command ()
+  "org-runbook-execute should execute the command referenced in the corresponding org file."
+  (with-temp-buffer
+    (fundamental-mode)
+    (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
+    (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+    (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-message)
+    (save-window-excursion
+      (org-runbook-switch-to-major-mode-file))
+    (org-runbook--output-configuration)
+    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+    (org-runbook-view)
+    (should (eq (get-buffer org-runbook-view-mode-buffer) (current-buffer)))
+    (goto-char (point-min))
+    (should (re-search-forward "echo test" nil t))
+    (org-runbook-view--open-at-point)
+    (should (s-contains-p "fundamental-mode.org" (buffer-file-name)))
+    (goto-char (point-min))
+    (should (re-search-forward "echo test" nil t))))
 
 (ert-deftest org-runbook-goto-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
@@ -92,11 +78,12 @@
     (fundamental-mode)
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+    (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-message)
     (org-runbook--output-configuration)
-    (with-completing-read #'org-runbook--test-first-target
-      (org-runbook-goto)
-      (should (s-contains-p "fundamental-mode.org" (buffer-file-name)))
-      (goto-char (point-min))
-      (should (re-search-forward "echo test" nil t)))))
+    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+    (org-runbook-goto)
+    (should (s-contains-p "fundamental-mode.org" (buffer-file-name)))
+    (goto-char (point-min))
+    (should (re-search-forward "echo test" nil t))))
 
 (provide 'org-runbook-test)

@@ -80,9 +80,11 @@
 (require 'pulse)
 (require 'rx)
 (require 'org)
+(require 'ob-core)
 (require 'pcase)
 (require 'subr-x)
 (require 'eshell)
+(require 'cl-lib)
 
 
 ;; Optional Dependencies
@@ -157,27 +159,35 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   (name nil :type stringp :read-only t)
   (file nil :type stringp :read-only t)
   (targets nil :read-only t :type org-runbook-command-list-p))
+(defun org-runbook--completing-read ()
+  "Prompt user for a runbook command."
+  (let ((command-map
+         (->> (org-runbook-targets)
+              (--map (org-runbook-file-targets it))
+              (-flatten)
+              (--map (cons (org-runbook-command-target-name it) it))
+              (ht<-alist))))
+    (when (eq (ht-size command-map) 0) (org-runbook--no-commands-error))
+    (when-let (key (completing-read "Runbook:" command-map nil t))
+      (ht-get command-map key))))
 
 ;;;###autoload
 (defun org-runbook-execute ()
   "Prompt for command completion and execute the selected command."
   (interactive)
-  (when-let (target (org-runbook--completing-read))
-    (org-runbook-execute-target-action target)))
+  (-some-> (org-runbook--completing-read) org-runbook-execute-target-action))
 
 ;;;###autoload
 (defun org-runbook-view ()
   "Prompt for command completion and view the selected command."
   (interactive)
-  (when-let (target (org-runbook--completing-read))
-    (org-runbook-view-target-action target)))
+  (-some-> (org-runbook--completing-read) org-runbook-view-target-action))
 
 ;;;###autoload
 (defun org-runbook-goto ()
   "Prompt for command completion and goto the selected command's location."
   (interactive)
-  (when-let (target (org-runbook--completing-read))
-    (org-runbook-goto-target-action target)))
+  (-some-> (org-runbook--completing-read) org-runbook-goto-target-action))
 
 ;;;###autoload
 (defun org-runbook-targets ()
@@ -231,24 +241,13 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   (org-runbook-switch-to-projectile-file)
   (goto-char (point-max)))
 
-(defun org-runbook--completing-read ()
-  "Prompt user for a runbook command."
-  (let ((command-map
-         (->> (org-runbook-targets)
-              (--map (org-runbook-file-targets it))
-              (-flatten)
-              (--map (cons (org-runbook-command-target-name it) it))
-              (ht<-alist))))
-    (when (eq (ht-size command-map) 0) (org-runbook--no-commands-error))
-    (when-let (key (completing-read "Runbook:" command-map nil t))
-      (ht-get command-map key))))
+
 
 (defun org-runbook-view-target-action (target)
   "View the selected command from helm.  Expects TARGET to be a `org-runbook-command-target'."
   (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
   (pcase-let* ((count 0)
                ((cl-struct org-runbook-command subcommands) (org-runbook--shell-command-for-target target)))
-    (when (get-buffer org-runbook-view-mode-buffer) (kill-buffer org-runbook-view-mode-buffer))
     (switch-to-buffer (or (get-buffer org-runbook-view-mode-buffer)
                           (generate-new-buffer org-runbook-view-mode-buffer)))
 
@@ -266,12 +265,9 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
                          "#+BEGIN_SRC shell\n\n"
                          command
                          "\n#+END_SRC\n")
-                 (propertize it
-                             'point-entered
-                             (lambda (&rest _) (setq-local org-runbook-view--section section))))))
+                 (propertize it 'section section))))
          (s-join "\n")
          (insert))
-    (-some->> (first subcommands) (setq-local org-runbook-view--section))
     (setq-local inhibit-read-only nil)))
 
 (defun org-runbook-execute-target-action (command)
@@ -364,7 +360,7 @@ Return `org-runbook-command-target'."
 (defun org-runbook-view--open-at-point ()
   "Switch buffer to the file referenced at point in `org-runbook-view-mode'."
   (interactive)
-  (or (-some-> org-runbook-view--section org-runbook-goto-target-action)
+  (or (-some-> (get-text-property (point) 'section) org-runbook-goto-target-action)
       (user-error "No known section at point")))
 
 (defun org-runbook--shell-command-for-target (target)
@@ -384,7 +380,8 @@ TARGET is a `org-runbook-command-target'."
             (while (not at-root)
               (let* ((start (org-get-heading)))
                 (save-excursion
-                  (while (and (ignore-errors (org-babel-next-src-block 1)) (string= (org-get-heading) start))
+                  (while (and (ignore-errors (org-babel-next-src-block 1) t)
+                              (string= (org-get-heading) start))
                     (push
                      (make-org-runbook-subcommand
                       :heading (org-get-heading)
