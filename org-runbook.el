@@ -87,7 +87,7 @@
 
 ;; Optional Dependencies
 (require 'projectile nil t)
-(declare-function project-name "ext:projectile.el" (&optional project))
+(declare-function projectile-project-name "ext:projectile.el" (&optional project))
 (require 'evil nil t)
 
 (defgroup org-runbook nil "Org Runbook Options" :group 'org)
