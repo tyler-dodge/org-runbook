@@ -4,7 +4,7 @@
 (require 'org)
 
 (when (require 'undercover nil t)
-  (undercover))
+  (undercover "*.el"))
 (require 'org-runbook (expand-file-name "org-runbook.el"))
 
 (ert-deftest org-runbook-exists ()

@@ -129,36 +129,26 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
 
 (defvar-local org-runbook-view--section nil "Tracks the section point is currently on in org-runbook-view-mode")
 
-(defun org-runbook-subcommand-list-p (arg)
-  "Return non-nil if ARG is a list and every element is an org-runbook-command."
-  (and (listp arg)
-       (not (--first (not (org-runbook-subcommand-p it)) arg))))
-
-(defun org-runbook-command-list-p (arg)
-  "Return non-nil if ARG is a list and every element is an org-runbook-command."
-  (and (listp arg)
-       (not (--first (not (org-runbook-command-p it)) arg))))
-
 (cl-defstruct (org-runbook-command-target (:constructor org-runbook-command-target-create))
-  (name nil :type stringp)
-  (point nil :type numberp)
-  (buffer nil :type bufferp))
+  name
+  point
+  buffer)
 
 (cl-defstruct (org-runbook-subcommand (:constructor org-runbook-subcommand-create))
-  (heading nil :type stringp)
-  (target nil :type org-runbook-command-target-p)
-  (command nil :type stringp))
+  heading
+  target
+  command)
 
 (cl-defstruct (org-runbook-command (:constructor org-runbook-command-create))
-  (name nil :type stringp :read-only t)
-  (full-command nil :read-only t :type stringp)
-  (target nil :read-only t :type org-runbook-command-target-p)
-  (subcommands nil :read-only t :type org-runbook-subcommand-list-p))
+  name
+  full-command
+  target
+  subcommands)
 
 (cl-defstruct (org-runbook-file (:constructor org-runbook-file-create))
-  (name nil :type stringp :read-only t)
-  (file nil :type stringp :read-only t)
-  (targets nil :read-only t :type org-runbook-command-list-p))
+  name
+  file
+  targets)
 
 (defun org-runbook--completing-read ()
   "Prompt user for a runbook command."
