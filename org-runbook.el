@@ -139,26 +139,27 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   (and (listp arg)
        (not (--first (not (org-runbook-command-p it)) arg))))
 
-(cl-defstruct org-runbook-command-target
+(cl-defstruct (org-runbook-command-target (:constructor org-runbook-command-target-create))
   (name nil :type stringp)
   (point nil :type numberp)
   (buffer nil :type bufferp))
 
-(cl-defstruct org-runbook-subcommand
+(cl-defstruct (org-runbook-subcommand (:constructor org-runbook-subcommand-create))
   (heading nil :type stringp)
   (target nil :type org-runbook-command-target-p)
   (command nil :type stringp))
 
-(cl-defstruct org-runbook-command
+(cl-defstruct (org-runbook-command (:constructor org-runbook-command-create))
   (name nil :type stringp :read-only t)
   (full-command nil :read-only t :type stringp)
   (target nil :read-only t :type org-runbook-command-target-p)
   (subcommands nil :read-only t :type org-runbook-subcommand-list-p))
 
-(cl-defstruct org-runbook-file
+(cl-defstruct (org-runbook-file (:constructor org-runbook-file-create))
   (name nil :type stringp :read-only t)
   (file nil :type stringp :read-only t)
   (targets nil :read-only t :type org-runbook-command-list-p))
+
 (defun org-runbook--completing-read ()
   "Prompt user for a runbook command."
   (let ((command-map
@@ -211,7 +212,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
                                   (set-buffer (find-file-noselect file))
                                   (org-runbook--targets-in-buffer))))
                  (when targets
-                   (-> (make-org-runbook-file
+                   (-> (org-runbook-file-create
                         :name name
                         :file file
                         :targets targets)
@@ -320,7 +321,7 @@ Return `org-runbook-command-target'."
                                (-map 's-trim)
                                (reverse)
                                (s-join " >> "))))
-               (list (make-org-runbook-command-target
+               (list (org-runbook-command-target-create
                       :name name :buffer (current-buffer) :point (point)))))))
 
 (defun org-runbook-major-mode-file ()
@@ -383,9 +384,9 @@ TARGET is a `org-runbook-command-target'."
                   (while (and (ignore-errors (org-babel-next-src-block 1) t)
                               (string= (org-get-heading) start))
                     (push
-                     (make-org-runbook-subcommand
+                     (org-runbook-subcommand-create
                       :heading (org-get-heading)
-                      :target (make-org-runbook-command-target
+                      :target (org-runbook-command-target-create
                                :buffer (current-buffer)
                                :point (point))
                       :command
@@ -398,7 +399,7 @@ TARGET is a `org-runbook-command-target'."
                      subcommands)
                     (forward-line 1))))
               (setq at-root (not (org-up-heading-safe))))))
-        (make-org-runbook-command
+        (org-runbook-command-create
          :name name
          :target (-some->> subcommands last car org-runbook-subcommand-target)
          :full-command
