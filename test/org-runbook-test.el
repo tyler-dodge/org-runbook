@@ -1,7 +1,5 @@
 ;;; -*- lexical-binding: t -*-
 
-(require 'undercover)
-(undercover "org-runbook.el")
 (require 'org-runbook (expand-file-name "org-runbook.el"))
 
 (defmacro with-completing-read (override &rest prog)
