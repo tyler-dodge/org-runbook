@@ -2,6 +2,9 @@
 
 (require 'cl-lib)
 (require 'org)
+
+(when (require 'undercover nil t)
+  (undercover))
 (require 'org-runbook (expand-file-name "org-runbook.el"))
 
 (ert-deftest org-runbook-exists ()
