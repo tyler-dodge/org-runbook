@@ -66,15 +66,14 @@
   (with-temp-buffer
     (fundamental-mode)
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
-    (setq-local org-runbook-files (list (relative-to-test-directory "test-runbook.org")))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-message)
+    (setq-local org-runbook-files (list (relative-to-test-directory "test-runbook.org")))
     (org-runbook--output-configuration)
     (setq-local completing-read-function (lambda (_ collection &rest _)
                                            (-some->> collection (ht-keys)
                                                      (--first (string= it "Test Data 2 >> Test Data B")))))
-    (should (org-runbook-execute))
-    (should (string= (org-runbook-command-full-command org-runbook-command-last-command) "echo test-runbook-2-B"))))
+    (should (org-runbook-execute))))
 
 (ert-deftest org-runbook-goto-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
