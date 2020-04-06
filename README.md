@@ -1,4 +1,4 @@
-# org-runbook.el [![Build Status](https://travis-ci.org/tyler-dodge/org-runbook.svg?branch=master)](https://travis-ci.org/github/tyler-dodge/org-runbook) [![Coverage Status](https://coveralls.io/repos/github/tyler-dodge/org-runbook/badge.svg)](https://coveralls.io/github/tyler-dodge/org-runbook)
+# org-runbook.el [![Build Status](https://travis-ci.org/tyler-dodge/org-runbook.svg?branch=master)](https://travis-ci.org/github/tyler-dodge/org-runbook) [![Coverage Status](https://coveralls.io/repos/github/tyler-dodge/org-runbook/badge.svg?branch=master)](https://coveralls.io/github/tyler-dodge/org-runbook)
 
 Library for looking up and executing commands from org files corresponding to the current buffer.
 
