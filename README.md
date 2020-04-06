@@ -87,13 +87,13 @@ See [Helm Org Runbook](https://github.com/tyler-dodge/helm-org-runbook) for a ni
 * [org-runbook-targets](#org-runbook-targets) <a name="org-runbook-targets"></a> Return the runbook commands corresponding to the current buffer.
 Intended to provide completions for completing-read functions
 
-* [org-runbook-execute-command-action](#org-runbook-execute-command-action) <a name="org-runbook-execute-command-action"></a> Execute the command.
+* [org-runbook-execute-target-action](#org-runbook-execute-target-action) <a name="org-runbook-execute-command-action"></a> Execute the command.
 Expects the command to be one of the elements of (org-runbook-targets)
 
-* [org-runbook-view-command-action](#org-runbook-view-command-action) <a name="org-runbook-view-command-action"></a>  View the command.
+* [org-runbook-view-target-action](#org-runbook-view-target-action) <a name="org-runbook-view-command-action"></a>  View the command.
 Expects the command to be one of the elements of (org-runbook-targets)
 
-* [org-runbook-goto-command-action](#org-runbook-goto-command-action) <a name="org-runbook-goto-command-action"></a>  Switch to the file where the command is defined.
+* [org-runbook-goto-target-action](#org-runbook-goto-target-action) <a name="org-runbook-goto-command-action"></a>  Switch to the file where the command is defined.
 Expects the command to be one of the elements of (org-runbook-targets)
 
 ### Org Files
