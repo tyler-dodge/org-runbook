@@ -369,7 +369,6 @@ TARGET is a `org-runbook-command-target'."
              (subcommands nil))
         (set-buffer buffer)
         (goto-char point)
-        (unless (org-at-heading-p) (org-back-to-heading))
         (save-excursion
           (let* ((at-root nil))
             (while (not at-root)

@@ -14,7 +14,7 @@ test: clean-elc
 unit:
 	${CASK} exec ert-runner
 
-compile:
+compile: deps
 	${CASK} exec ${EMACS} -Q -batch -f batch-byte-compile org-runbook.el
 
 clean-elc:

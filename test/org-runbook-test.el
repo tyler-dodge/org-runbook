@@ -2,6 +2,7 @@
 
 (require 'cl-lib)
 (require 'org)
+(require 'el-mock)
 
 (when (require 'undercover nil t)
   (undercover "*.el"))
@@ -90,5 +91,41 @@
     (should (s-contains-p "fundamental-mode.org" (buffer-file-name)))
     (goto-char (point-min))
     (should (re-search-forward "echo test" nil t))))
+
+(ert-deftest org-runbook-switch-to-file-functions ()
+  "org-runbook-switch-to-* functions should work correctly"
+  (with-temp-buffer
+    (fundamental-mode)
+    (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
+    (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+    (let ((expected-file-name (expand-file-name (f-join org-runbook-modes-directory "fundamental-mode.org"))))
+      (org-runbook-switch-to-major-mode-file)
+      (should (string= (buffer-file-name) expected-file-name)))
+    (let ((expected-file-name (expand-file-name (f-join org-runbook-project-directory "project-file.org")))
+          (projectile-project-function (symbol-function #'projectile-project-name)))
+      (with-mock
+        (stub projectile-project-name => "project-file")
+        (org-runbook-switch-to-projectile-file)
+        (should (string= (buffer-file-name) expected-file-name))))))
+
+(ert-deftest org-runbook-execute-shell-functions ()
+  "Test org-runbook-execute-eshell and org-runbook-execute-shell."
+  (with-temp-buffer
+    (fundamental-mode)
+    (should-error (org-runbook-command-execute-eshell nil))
+    (should-error (org-runbook-command-execute-shell nil))
+    (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
+    (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+    (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-shell)
+    (org-runbook--output-configuration)
+    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+    (with-mock
+      (mock (async-shell-command "echo test" "*Test*") => t :times 1)
+      (should (org-runbook-execute)))
+
+    (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-eshell)
+    (with-mock
+      (mock (eshell-command "echo test") => t :times 1)
+      (should (org-runbook-execute)))))
 
 (provide 'org-runbook-test)
