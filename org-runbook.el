@@ -127,6 +127,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   :type 'function
   :group 'org-runbook)
 
+(defvar org-runbook--target-history nil "History for org-runbook completing read for targets.")
 (defvar-local org-runbook-view--section nil "Tracks the section point is currently on in org-runbook-view-mode")
 
 (cl-defstruct (org-runbook-command-target (:constructor org-runbook-command-target-create))
@@ -159,7 +160,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
               (--map (cons (org-runbook-command-target-name it) it))
               (ht<-alist))))
     (when (eq (ht-size target-map) 0) (org-runbook--no-commands-error))
-    (when-let (key (completing-read "Runbook:" target-map nil t))
+    (when-let (key (completing-read "Runbook:" target-map nil t nil 'org-runbook--target-history))
       (ht-get target-map key))))
 
 ;;;###autoload
