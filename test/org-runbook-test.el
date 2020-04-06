@@ -42,6 +42,7 @@
 (ert-deftest org-runbook-view-one-command ()
   "org-runbook-execute should execute the command referenced in the corresponding org file."
   (with-temp-buffer
+    (should-error (org-runbook-view-target-action nil))
     (fundamental-mode)
     (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
@@ -108,6 +109,44 @@
         (org-runbook-switch-to-projectile-file)
         (should (string= (buffer-file-name) expected-file-name))))))
 
+(ert-deftest org-runbook-switch-to-capture-target-file-functions ()
+  "org-runbook-switch-to-* functions should work correctly"
+  (with-temp-buffer
+    (fundamental-mode)
+    (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
+    (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+    (let ((expected-file-name (expand-file-name (f-join org-runbook-modes-directory "fundamental-mode.org"))))
+      (org-runbook-capture-target-major-mode-file)
+      (should (eq (point) (point-max)))
+      (should (string= (buffer-file-name) expected-file-name)))
+
+    (let ((expected-file-name (expand-file-name (f-join org-runbook-project-directory "project-file.org")))
+          (projectile-project-function (symbol-function #'projectile-project-name)))
+      (with-mock
+        (stub projectile-project-name => "project-file")
+        (org-runbook-capture-target-projectile-file)
+        (should (eq (point) (point-max)))
+        (should (string= (buffer-file-name) expected-file-name))))))
+
+(ert-deftest org-runbook-should-execute-in-file-buffers ()
+  "Should use default-directory for project_root in file-buffers."
+  (find-file (relative-to-test-directory "test-runbook.org"))
+  (should-error (org-runbook-command-execute-eshell nil))
+  (should-error (org-runbook-command-execute-shell nil))
+  (setq-local org-runbook-modes-directory (relative-to-test-directory "no-commands"))
+  (setq-local org-runbook-project-directory (relative-to-test-directory "no-commands"))
+  (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-shell)
+  (org-runbook--output-configuration)
+  (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+  (with-mock
+    (mock (async-shell-command "echo test-runbook-1-A" "*Test Data 1 >> Test Data A*") => t :times 1)
+    (should (org-runbook-execute))))
+
+(ert-deftest org-runbook-view--open-at-point-error ()
+  "org-runbook-view--open-at-point should throw an error if there isn't a section'"
+  (should-error (with-temp-buffer (org-runbook-view--open-at-point))))
+
+
 (ert-deftest org-runbook-execute-shell-functions ()
   "Test org-runbook-execute-eshell and org-runbook-execute-shell."
   (with-temp-buffer
@@ -127,5 +166,31 @@
     (with-mock
       (mock (eshell-command "echo test") => t :times 1)
       (should (org-runbook-execute)))))
+
+(ert-deftest org-runbook--projectile-should-be-optional ()
+  "org-runbook should work without projectile-project-name bound"
+  (let ((project-name (symbol-function #'projectile-project-name))
+        (project-root (symbol-function #'projectile-project-root)))
+    (with-temp-buffer
+      (fundamental-mode)
+      (unwind-protect
+          (progn
+            (fset 'projectile-project-name nil)
+            (fset 'projectile-project-root nil)
+            (should-error (org-runbook-projectile-file))
+            (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
+            (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+            (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-shell)
+            (org-runbook--output-configuration)
+            (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+            (with-mock
+              (mock (async-shell-command "echo test" "*Test*") => t :times 1)
+              (should (org-runbook-execute)))
+            (setq-local org-runbook-modes-directory (relative-to-test-directory "no-commands"))
+            (setq-local org-runbook-project-directory (relative-to-test-directory "no-commands"))
+            (should-error (org-runbook-execute)))
+        (fset 'projectile-project-root project-root)
+        (fset 'projectile-project-name project-name))))
+  )
 
 (provide 'org-runbook-test)
