@@ -185,13 +185,13 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
 (defun org-runbook-targets ()
   "Return the runbook commands corresponding to the current buffer."
   (save-excursion
-    (let* ((major-mode-file (list (cons (symbol-name major-mode) (org-runbook-major-mode-file))))
+    (let* ((major-mode-file (list (cons (symbol-name major-mode) (org-runbook-major-mode-file t))))
            (current-buffer-file (when (eq major-mode 'org-mode)
                                   (list (cons "*current buffer*"
                                               (buffer-file-name)))))
            (projectile-file (list (when (fboundp 'projectile-project-name)
                                     (cons (concat "*Project " (projectile-project-name) "*")
-                                          (org-runbook-projectile-file)))))
+                                          (org-runbook-projectile-file t)))))
            (global-files (--map (cons it it) org-runbook-files))
            (org-files
             (seq-uniq (-flatten (append major-mode-file current-buffer-file projectile-file global-files))
@@ -319,15 +319,17 @@ Return `org-runbook-command-target'."
                                (unless (org-at-heading-p) (re-search-backward (regexp-quote (org-get-heading))))
                                (point))))))))
 
-(defun org-runbook-major-mode-file ()
+(defun org-runbook-major-mode-file (&optional no-ensure)
   "Target for appending at the end of the runbook corresponding to the current buffer's major mode."
-  (org-runbook--ensure-file (f-join org-runbook-project-directory (concat (symbol-name major-mode) ".org"))))
+  (let ((file (f-join org-runbook-project-directory (concat (symbol-name major-mode) ".org"))))
+    (if no-ensure file (org-runbook--ensure-file file))))
 
-(defun org-runbook-projectile-file ()
+(defun org-runbook-projectile-file (&optional no-ensure)
   "Return the path for the org runbook file correspoding to the current projectile project."
   (unless (fboundp 'projectile-project-name)
     (user-error "Projectile must be installed for org-runbook-projectile-file"))
-  (org-runbook--ensure-file (f-join org-runbook-project-directory (concat (projectile-project-name) ".org"))))
+  (let ((file (f-join org-runbook-project-directory (concat (projectile-project-name) ".org"))))
+    (if no-ensure file (org-runbook--ensure-file file))))
 
 (defun org-runbook--ensure-file (file)
   "Create the FILE if it doesn't exist.  Return the fully expanded FILE name."

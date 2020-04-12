@@ -190,7 +190,21 @@
             (setq-local org-runbook-project-directory (relative-to-test-directory "no-commands"))
             (should-error (org-runbook-execute)))
         (fset 'projectile-project-root project-root)
-        (fset 'projectile-project-name project-name))))
-  )
+        (fset 'projectile-project-name project-name)))))
+
+(ert-deftest org-runbook--should-not-create-files ()
+  "org-runbook should not create files."
+  (with-temp-buffer
+    (fundamental-mode)
+    (progn
+      (setq-local org-runbook-modes-directory (relative-to-test-directory "one-command"))
+      (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
+      (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-shell)
+      (org-runbook--output-configuration)
+      (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+      (with-mock
+        (mock (async-shell-command "echo test" "*Test*") => t :times 1)
+        (should (org-runbook-execute)))
+      (should (not (f-exists-p (relative-to-test-directory "one-command/org-runbook.org")))))))
 
 (provide 'org-runbook-test)
