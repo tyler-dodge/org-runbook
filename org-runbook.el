@@ -130,23 +130,27 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
 (defvar org-runbook--target-history nil "History for org-runbook completing read for targets.")
 (defvar-local org-runbook-view--section nil "Tracks the section point is currently on in org-runbook-view-mode")
 
-(cl-defstruct (org-runbook-command-target (:constructor org-runbook-command-target-create))
+(cl-defstruct (org-runbook-command-target (:constructor org-runbook-command-target-create)
+                                          (:copier org-runbook-command-target-copy))
   name
   point
   buffer)
 
-(cl-defstruct (org-runbook-subcommand (:constructor org-runbook-subcommand-create))
+(cl-defstruct (org-runbook-subcommand (:constructor org-runbook-subcommand-create)
+                                      (:copier org-runbook-subcommand-copy))
   heading
   target
   command)
 
-(cl-defstruct (org-runbook-command (:constructor org-runbook-command-create))
+(cl-defstruct (org-runbook-command (:constructor org-runbook-command-create)
+                                   (:copier org-runbook-command-copy))
   name
   full-command
   target
   subcommands)
 
-(cl-defstruct (org-runbook-file (:constructor org-runbook-file-create))
+(cl-defstruct (org-runbook-file (:constructor org-runbook-file-create)
+                                (:copier org-runbook-file-copy))
   name
   file
   targets)
