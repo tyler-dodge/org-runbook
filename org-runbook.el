@@ -19,8 +19,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-;;; 
-;;; 
+;;;
+;;;
 ;;; Commentary:
 ;; org-runbook provides heirarchical runbook commands from org file accessible directly from buffers.
 ;; Main entry points include `org-runbook-execute', `org-runbook-switch-to-major-mode-file',
@@ -324,12 +324,14 @@ Return `org-runbook-command-target'."
                                (point))))))))
 
 (defun org-runbook-major-mode-file (&optional no-ensure)
-  "Target for appending at the end of the runbook corresponding to the current buffer's major mode."
+  "Target for appending at the end of the runbook corresponding to the current buffer's major mode.
+Ensures the file exists unless NO-ENSURE is non-nil."
   (let ((file (f-join org-runbook-project-directory (concat (symbol-name major-mode) ".org"))))
     (if no-ensure file (org-runbook--ensure-file file))))
 
 (defun org-runbook-projectile-file (&optional no-ensure)
-  "Return the path for the org runbook file correspoding to the current projectile project."
+  "Return the path for the org runbook file correspoding to the current projectile project.
+Ensures the file exists unless NO-ENSURE is non-nil."
   (unless (fboundp 'projectile-project-name)
     (user-error "Projectile must be installed for org-runbook-projectile-file"))
   (let ((file (f-join org-runbook-project-directory (concat (projectile-project-name) ".org"))))
