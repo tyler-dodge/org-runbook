@@ -457,7 +457,7 @@ TARGET is a `org-runbook-command-target'."
                               ("current_file" source-buffer-file-name))))
                         group)))
                     (forward-line 1)))
-                (setq subcommands (append subcommands (reverse group) nil)))
+                (setq subcommands (append (reverse group) subcommands nil)))
               (setq at-root (not (org-up-heading-safe))))))
         (org-runbook-command-create
          :name name
