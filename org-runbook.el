@@ -268,6 +268,7 @@ Use `default-directory' if projectile is unavailable."
   "View the selected command from helm.  Expects TARGET to be a `org-runbook-command-target'."
   (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
   (pcase-let* ((count 0)
+               (displayed-headings (ht))
                ((cl-struct org-runbook-command subcommands) (org-runbook--shell-command-for-target target)))
     (switch-to-buffer (or (get-buffer org-runbook-view-mode-buffer)
                           (generate-new-buffer org-runbook-view-mode-buffer)))
@@ -279,13 +280,21 @@ Use `default-directory' if projectile is unavailable."
          (-map
           (pcase-lambda ((and section (cl-struct org-runbook-subcommand heading command)))
             (setq count (1+ count))
-            (--> (concat (s-repeat count "*")
-                         " "
-                         heading
-                         "\n\n"
-                         "#+BEGIN_SRC shell\n\n"
-                         (format "%s" command)
-                         "\n#+END_SRC\n")
+            (--> (concat
+                  (when (not (ht-get displayed-headings heading nil))
+                    (ht-set displayed-headings heading t)
+                    (concat (s-repeat count "*")
+                            " "
+                            heading
+                            "\n\n"))
+                  (if (listp command)
+                      "(deferred:nextc\n  it\n  (lambda ()\n  "
+                    "#+BEGIN_SRC shell\n\n")
+                  (format (if (listp command) "%S" "%s") command)
+                  (if (listp command)
+                      ")"
+                    "\n#+END_SRC")
+                  "\n")
                  (propertize it 'section section))))
          (s-join "\n")
          (insert))
@@ -332,24 +341,27 @@ or a `org-runbook-command-target'."
 Return `org-runbook-command-target'."
   (save-excursion
     (goto-char (point-min))
-    (cl-loop while (re-search-forward (rx line-start (* whitespace) "#+BEGIN_SRC" (* whitespace) "shell") nil t)
-             append
-             (let* ((headings (save-excursion
-                                (append
-                                 (list (org-get-heading))
-                                 (save-excursion
-                                   (cl-loop while (org-up-heading-safe)
-                                            append (list (org-get-heading)))))))
-                    (name (->> headings
-                               (-map 's-trim)
-                               (reverse)
-                               (s-join " >> "))))
-               (list (org-runbook-command-target-create
-                      :name name
-                      :buffer (current-buffer)
-                      :point (save-excursion
-                               (unless (org-at-heading-p) (re-search-backward (regexp-quote (org-get-heading))))
-                               (point))))))))
+    (let* ((known-commands (ht)))
+      (cl-loop while (re-search-forward (rx line-start (* whitespace) "#+BEGIN_SRC" (* whitespace) "shell") nil t)
+               append
+               (let* ((headings (save-excursion
+                                  (append
+                                   (list (org-get-heading))
+                                   (save-excursion
+                                     (cl-loop while (org-up-heading-safe)
+                                              append (list (org-get-heading)))))))
+                      (name (->> headings
+                                 (-map 's-trim)
+                                 (reverse)
+                                 (s-join " >> "))))
+                 (when (not (ht-get known-commands name nil))
+                   (ht-set known-commands name t)
+                   (list (org-runbook-command-target-create
+                          :name name
+                          :buffer (current-buffer)
+                          :point (save-excursion
+                                   (unless (org-at-heading-p) (re-search-backward (regexp-quote (org-get-heading))))
+                                   (point))))))))))
 
 (defun org-runbook-major-mode-file (&optional no-ensure)
   "Target for appending at the end of the runbook corresponding to the current buffer's major mode.
