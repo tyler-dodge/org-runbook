@@ -128,6 +128,13 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   :group 'org-runbook)
 
 (defvar org-runbook--target-history nil "History for org-runbook completing read for targets.")
+
+(defvar org-runbook--last-command-ht (ht)
+  "Mapping from projectile root to the last command.
+If projectile is not imported, this uses the default directory.
+
+Used by `org-runbook-repeat-command'.")
+
 (defvar-local org-runbook-view--section nil "Tracks the section point is currently on in org-runbook-view-mode")
 
 (cl-defstruct (org-runbook-command-target (:constructor org-runbook-command-target-create)
@@ -141,6 +148,13 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   heading
   target
   command)
+
+(cl-defstruct (org-runbook-elisp-subcommand
+               (:constructor org-runbook-elisp-subcommand-create)
+               (:copier org-runbook-elisp-subcommand-copy))
+  heading
+  target
+  elisp)
 
 (cl-defstruct (org-runbook-command (:constructor org-runbook-command-create)
                                    (:copier org-runbook-command-copy))
@@ -184,6 +198,16 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   "Prompt for command completion and goto the selected command's location."
   (interactive)
   (-some-> (org-runbook--completing-read) org-runbook-goto-target-action))
+
+;;;###autoload
+(defun org-runbook-repeat ()
+  "Repeat the last command for the current projectile project.
+
+Use `default-directory' if projectile is unavailable."
+  (interactive)
+  (let ((command (ht-get org-runbook--last-command-ht (org-runbook--project-root))))
+    (if command (funcall org-runbook-execute-command-action command)
+      (org-runbook-execute))))
 
 ;;;###autoload
 (defun org-runbook-targets ()
@@ -260,7 +284,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
                          heading
                          "\n\n"
                          "#+BEGIN_SRC shell\n\n"
-                         command
+                         (format "%s" command)
                          "\n#+END_SRC\n")
                  (propertize it 'section section))))
          (s-join "\n")
@@ -270,7 +294,11 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
 (defun org-runbook-execute-target-action (target)
   "Execute the `org-runbook' compile TARGET from helm.
 Expects COMMAND to be of the form (:command :name)."
-  (funcall org-runbook-execute-command-action (org-runbook--shell-command-for-target target)))
+  (let ((command (org-runbook--shell-command-for-target target)))
+    (ht-set org-runbook--last-command-ht
+            (org-runbook--project-root)
+            command)
+    (funcall org-runbook-execute-command-action command)))
 
 (defun org-runbook-command-execute-eshell (command)
   "Execute the COMMAND in eshell."
@@ -381,33 +409,50 @@ TARGET is a `org-runbook-command-target'."
         (save-excursion
           (let* ((at-root nil))
             (while (not at-root)
-              (let* ((start (org-get-heading)))
+              (let* ((start (org-get-heading))
+                     (group nil))
                 (save-excursion
                   (end-of-line)
-                  (while (and (re-search-forward (rx "#+BEGIN_SRC" (* whitespace) "shell") nil t)
+                  (while (and (re-search-forward (rx "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp")) nil t)
                               (string= (org-get-heading) start))
-                    (push
-                     (org-runbook-subcommand-create
-                      :heading start
-                      :target (org-runbook-command-target-create
-                               :buffer (current-buffer)
-                               :point (point))
-                      :command
-                      (mustache-render
-                       (buffer-substring
-                        (save-excursion (forward-line 1) (point))
-                        (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
-                       (ht ("project_root" project-root)
-                           ("current_file" source-buffer-file-name))))
-                     subcommands)
-                    (forward-line 1))))
+                    (pcase (car (org-babel-get-src-block-info))
+                      ((pred (s-starts-with-p "emacs-lisp"))
+                       (push
+                        (org-runbook-elisp-subcommand-create
+                         :heading start
+                         :target (org-runbook-command-target-create
+                                  :buffer (current-buffer)
+                                  :point (point))
+                         :elisp
+                         (read
+                          (buffer-substring
+                           (save-excursion (forward-line 1) (point))
+                           (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))))
+                        group))
+                      ((pred (s-starts-with-p "shell"))
+                       (push
+                        (org-runbook-subcommand-create
+                         :heading start
+                         :target (org-runbook-command-target-create
+                                  :buffer (current-buffer)
+                                  :point (point))
+                         :command
+                         (mustache-render
+                          (buffer-substring-no-properties
+                           (save-excursion (forward-line 1) (point))
+                           (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
+                          (ht ("project_root" project-root)
+                              ("current_file" source-buffer-file-name))))
+                        group)))
+                    (forward-line 1)))
+                (setq subcommands (append subcommands (reverse group) nil)))
               (setq at-root (not (org-up-heading-safe))))))
         (org-runbook-command-create
          :name name
-         :target (-some->> subcommands last car org-runbook-subcommand-target)
+         :target (-some->> subcommands (-filter #'org-runbook-subcommand-p) last car org-runbook-subcommand-target)
          :full-command
          (-some->> subcommands
-           (--filter it)
+           (--filter (and it (org-runbook-subcommand-p it)))
            (--map (org-runbook-subcommand-command it))
            (--filter it)
            (--map (s-trim it))
