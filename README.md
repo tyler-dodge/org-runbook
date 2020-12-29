@@ -75,7 +75,8 @@ Commands will resolve placeholders before evaluating.
 
 org-runbook exposes a few commands meant to be example entry points using completing read. 
 
-See [Helm Org Runbook](https://github.com/tyler-dodge/helm-org-runbook) for a nicer frontend.
+* [org-runbook-ivy](#org-runbook-ivy) <a name="org-runbook-ivy"></a>Prompt for command completion and execute the selected command. The rest of the interactive commands
+are accesible through this via the extra actions.
 
 * [org-runbook-execute](#org-runbook-execute) <a name="org-runbook-execute"></a> Prompt for command completion and execute the selected command.
 

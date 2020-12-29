@@ -523,6 +523,9 @@ TARGET is a `org-runbook-command-target'."
 
 (when (fboundp 'ivy-read)
   (defun org-runbook-ivy ()
+    "Prompt for command completion and execute the selected command.
+The rest of the interactive commands are accesible through this via
+the extra actions. See `ivy-dispatching-done'"
     (interactive)
     (ivy-read "Command"
               (->> (org-runbook-targets)
