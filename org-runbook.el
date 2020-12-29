@@ -91,6 +91,7 @@
 (require 'projectile nil t)
 (declare-function projectile-project-name "ext:projectile.el" (&optional project))
 (require 'evil nil t)
+(require 'ivy nil t)
 
 (defgroup org-runbook nil "Org Runbook Options" :group 'org)
 
@@ -127,6 +128,12 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   :type 'function
   :group 'org-runbook)
 
+(defcustom org-runbook-process-connection-type nil
+  "The process connection type to default to in org-runbook. 
+The pty flag is ignored since it's already enabled if this is t."
+  :type 'booleanp
+  :group 'org-runbook)
+
 (defvar org-runbook--target-history nil "History for org-runbook completing read for targets.")
 
 (defvar org-runbook--last-command-ht (ht)
@@ -161,7 +168,8 @@ Used by `org-runbook-repeat-command'.")
   name
   full-command
   target
-  subcommands)
+  subcommands
+  pty)
 
 (cl-defstruct (org-runbook-file (:constructor org-runbook-file-create)
                                 (:copier org-runbook-file-copy))
@@ -321,7 +329,9 @@ Expects COMMAND to be of the form (:command :name)."
   (org-runbook--validate-command command)
   (pcase-let (((cl-struct org-runbook-command full-command name) command))
     ;; Intentionally not shell quoting full-command since it's a script
-    (async-shell-command full-command (concat "*" name "*"))))
+    (let ((process-connection-type (or org-runbook-process-connection-type
+                                       (org-runbook-command-pty command))))
+      (async-shell-command full-command (concat "*" name "*")))))
 
 (defun org-runbook-goto-target-action (command)
   "Goto the position referenced by COMMAND.
@@ -342,14 +352,14 @@ Return `org-runbook-command-target'."
   (save-excursion
     (goto-char (point-min))
     (let* ((known-commands (ht)))
-      (cl-loop while (re-search-forward (rx line-start (* whitespace) "#+BEGIN_SRC" (* whitespace) "shell") nil t)
+      (cl-loop while (re-search-forward (rx line-start (* whitespace) "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp")) nil t)
                append
                (let* ((headings (save-excursion
                                   (append
-                                   (list (org-get-heading))
+                                   (list (org-runbook--get-heading))
                                    (save-excursion
                                      (cl-loop while (org-up-heading-safe)
-                                              append (list (org-get-heading)))))))
+                                              append (list (org-runbook--get-heading)))))))
                       (name (->> headings
                                  (-map 's-trim)
                                  (reverse)
@@ -360,8 +370,11 @@ Return `org-runbook-command-target'."
                           :name name
                           :buffer (current-buffer)
                           :point (save-excursion
-                                   (unless (org-at-heading-p) (re-search-backward (regexp-quote (org-get-heading))))
+                                   (unless (org-at-heading-p) (re-search-backward (regexp-quote (org-runbook--get-heading))))
                                    (point))))))))))
+
+(defun org-runbook--get-heading ()
+  (substring-no-properties (org-get-heading t t t t)))
 
 (defun org-runbook-major-mode-file (&optional no-ensure)
   "Target for appending at the end of the runbook corresponding to the current buffer's major mode.
@@ -413,54 +426,76 @@ TARGET is a `org-runbook-command-target'."
   (unless (org-runbook-command-target-p target) (error "Unexpected type passed %s" target))
   (save-excursion
     (pcase-let (((cl-struct org-runbook-command-target name buffer point) target))
-      (let* ((project-root (org-runbook--project-root))
+      (let* ((start-location (cons (current-buffer) (point)))
+             (project-root (org-runbook--project-root))
              (source-buffer-file-name (or (buffer-file-name buffer) default-directory))
+             (has-pty-tag nil)
              (subcommands nil))
         (set-buffer buffer)
         (goto-char point)
         (save-excursion
           (let* ((at-root nil))
             (while (not at-root)
-              (let* ((start (org-get-heading))
+              (let* ((start (org-runbook--get-heading))
                      (group nil))
                 (save-excursion
                   (end-of-line)
                   (while (and (re-search-forward (rx "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp")) nil t)
-                              (string= (org-get-heading) start))
-                    (pcase (car (org-babel-get-src-block-info))
-                      ((pred (s-starts-with-p "emacs-lisp"))
-                       (push
-                        (org-runbook-elisp-subcommand-create
-                         :heading start
-                         :target (org-runbook-command-target-create
-                                  :buffer (current-buffer)
-                                  :point (point))
-                         :elisp
-                         (read
-                          (buffer-substring
-                           (save-excursion (forward-line 1) (point))
-                           (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))))
-                        group))
-                      ((pred (s-starts-with-p "shell"))
-                       (push
-                        (org-runbook-subcommand-create
-                         :heading start
-                         :target (org-runbook-command-target-create
-                                  :buffer (current-buffer)
-                                  :point (point))
-                         :command
-                         (mustache-render
-                          (buffer-substring-no-properties
-                           (save-excursion (forward-line 1) (point))
-                           (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
-                          (ht ("project_root" project-root)
-                              ("current_file" source-buffer-file-name))))
-                        group)))
+                              (string= (org-runbook--get-heading) start))
+                    (setq has-pty-tag (or has-pty-tag (-contains-p (org-get-tags) "PTY")))
+                    (let* ((context (org-element-context))
+                           (src-block-info (with-current-buffer (car start-location)
+                                             (goto-char (cdr start-location))
+                                             (org-babel-get-src-block-info nil context))))
+                      (pcase (car src-block-info)
+                        ((pred (s-starts-with-p "emacs-lisp"))
+                         (push
+                          (org-runbook-elisp-subcommand-create
+                           :heading start
+                           :target (org-runbook-command-target-create
+                                    :buffer (current-buffer)
+                                    :point (point))
+                           :elisp
+                           (read
+                            (concat
+                             "(progn "
+                             (buffer-substring-no-properties
+                              (save-excursion (forward-line 1) (point))
+                              (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
+                             ")")))
+                          group))
+                        ((pred (s-starts-with-p "shell"))
+                         (push
+                          (org-runbook-subcommand-create
+                           :heading start
+                           :target (org-runbook-command-target-create
+                                    :buffer (current-buffer)
+                                    :point (point))
+                           :command
+                           (s-replace-all
+                            '(("&quot;" . "\"")
+                              ("&lt;" . "<")
+                              ("&apos;" . "'")
+                              ("&amp;" . "&")
+                              ("&gt;" . ">"))
+                            (mustache-render
+                             (buffer-substring-no-properties
+                              (save-excursion (forward-line 1) (point))
+                              (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
+                             (let ((context (org-element-context)))
+                               (--doto (ht<-alist (->> (caddr src-block-info)
+                                                       (--map (cons (symbol-name (car it)) (format "%s" (cdr it))))
+                                                       (--filter (not (s-starts-with-p ":" (car it))))))
+                                 (ht-set it "project_root" project-root)
+                                 (ht-set it "current_file" source-buffer-file-name)
+                                 (ht-set it "context" (format "%s" (ht->plist it))))))))
+                          group))))
                     (forward-line 1)))
                 (setq subcommands (append (reverse group) subcommands nil)))
               (setq at-root (not (org-up-heading-safe))))))
         (org-runbook-command-create
          :name name
+         :pty has-pty-tag
          :target (-some->> subcommands (-filter #'org-runbook-subcommand-p) last car org-runbook-subcommand-target)
          :full-command
          (-some->> subcommands
@@ -485,6 +520,26 @@ TARGET is a `org-runbook-command-target'."
   (unless command (error "Command cannot be nil"))
   (unless (org-runbook-command-p command) (error "Unexepected type for command %s" command))
   t)
+
+(when (fboundp 'ivy-read)
+  (defun org-runbook-ivy ()
+    (interactive)
+    (ivy-read "Command"
+              (->> (org-runbook-targets)
+                   (--map (->> it (org-runbook-file-targets)))
+                   (-flatten)
+                   (--map (cons (->> it (org-runbook-command-target-name)) it)))
+              :caller 'org-runbook-ivy)))
+
+(when (fboundp 'ivy-set-actions)
+  (ivy-set-actions
+   'org-runbook-ivy
+   `(
+     ("o" (lambda (target) (org-runbook-execute-target-action (cdr target))) "Execute Target")
+     ("g" (lambda (target) (org-runbook-goto-target-action (cdr target))) "Goto Target")
+     ("p" (lambda (&rest arg) (org-runbook-switch-to-projectile-file)) "Switch to Projectile File")
+     ("y" (lambda (&rest arg) (org-runbook-switch-to-major-mode-file)) "Switch to Major Mode File")
+     ("v" (lambda (target) (org-runbook-view-target-action (cdr target))) "View Target"))))
 
 (when (boundp 'evil-motion-state-modes)
   (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))
