@@ -137,7 +137,10 @@
   (setq-local org-runbook-project-directory (relative-to-test-directory "no-commands"))
   (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-shell)
   (org-runbook--output-configuration)
-  (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+  (setq-local completing-read-function (lambda (_ collection &rest _) (-some--> collection
+                                                                        (ht-keys it)
+                                                                        (sort it #'string<)
+                                                                        (first it))))
   (with-mock
     (mock (async-shell-command "echo test-runbook-1-A" "*Test Data 1 >> Test Data A*") => t :times 1)
     (should (org-runbook-execute))))

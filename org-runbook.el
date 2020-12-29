@@ -91,7 +91,6 @@
 (require 'projectile nil t)
 (declare-function projectile-project-name "ext:projectile.el" (&optional project))
 (require 'evil nil t)
-(require 'ivy nil t)
 
 (defgroup org-runbook nil "Org Runbook Options" :group 'org)
 
@@ -443,7 +442,7 @@ TARGET is a `org-runbook-command-target'."
   (unless (org-runbook-command-target-p target) (error "Unexpected type passed %s" target))
   (save-excursion
     (pcase-let (((cl-struct org-runbook-command-target name buffer point) target))
-      (let* ((start-location (cons (current-buffer) (point)))
+      (let* ((start-location (cons (current-buffer) (point-min)))
              (project-root (org-runbook--project-root))
              (source-buffer-file-name (or (buffer-file-name buffer) default-directory))
              (has-pty-tag nil)
@@ -453,22 +452,24 @@ TARGET is a `org-runbook-command-target'."
         (save-excursion
           (let* ((at-root nil))
             (while (not at-root)
-              (let* ((start (org-runbook--get-heading))
+              (let* ((start-heading (org-runbook--get-heading))
+                     (start (save-excursion (outline-previous-heading) (point)))
                      (group nil))
                 (save-excursion
                   (end-of-line)
                   (while (and (re-search-forward (rx "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp")) nil t)
-                              (string= (org-runbook--get-heading) start))
+                              (eq (save-excursion (outline-previous-heading) (point)) start))
                     (setq has-pty-tag (or has-pty-tag (-contains-p (org-get-tags) "PTY")))
                     (let* ((context (org-element-context))
                            (src-block-info (with-current-buffer (car start-location)
-                                             (goto-char (cdr start-location))
-                                             (org-babel-get-src-block-info nil context))))
+                                             (save-excursion
+                                               (goto-char (cdr start-location))
+                                               (org-babel-get-src-block-info nil context)))))
                       (pcase (car src-block-info)
                         ((pred (s-starts-with-p "emacs-lisp"))
                          (push
                           (org-runbook-elisp-subcommand-create
-                           :heading start
+                           :heading start-heading
                            :target (org-runbook-command-target-create
                                     :buffer (current-buffer)
                                     :point (point))
@@ -484,7 +485,7 @@ TARGET is a `org-runbook-command-target'."
                         ((pred (s-starts-with-p "shell"))
                          (push
                           (org-runbook-subcommand-create
-                           :heading start
+                           :heading start-heading
                            :target (org-runbook-command-target-create
                                     :buffer (current-buffer)
                                     :point (point))
@@ -507,7 +508,8 @@ TARGET is a `org-runbook-command-target'."
                                (ht-set it "context" (format "%s" (ht->plist it)))))))
                           group))))
                     (forward-line 1)))
-                (setq subcommands (append (reverse group) subcommands nil)))
+                (setq subcommands (append (reverse group) subcommands nil))
+                (goto-char start))
               (setq at-root (not (org-up-heading-safe))))))
         (org-runbook-command-create
          :name name
@@ -536,42 +538,6 @@ TARGET is a `org-runbook-command-target'."
   (unless command (error "Command cannot be nil"))
   (unless (org-runbook-command-p command) (error "Unexepected type for command %s" command))
   t)
-
-(when (fboundp 'ivy-read)
-  ;;;###autoload
-  (defun org-runbook-ivy ()
-    "Prompt for command completion and execute the selected command.
-The rest of the interactive commands are accesible through this via
-the extra actions. See `ivy-dispatching-done'."
-    (interactive)
-    (ivy-read "Command"
-              (->> (org-runbook-targets)
-                   (--map (->> it (org-runbook-file-targets)))
-                   (-flatten)
-                   (--map (cons (->> it (org-runbook-command-target-name)) it)))
-              :action 'org-runbook-multiaction
-              :caller 'org-runbook-ivy))
-
-  (defun org-runbook-multiaction (x)
-    "Add X to list of selected buffers `swiper-multi-buffers'.
-If X is already part of the list, remove it instead.  Quit the selection if
-X is selected by either `ivy-done', `ivy-alt-done' or `ivy-immediate-done',
-otherwise continue prompting for buffers."
-    (cond ((or (eq this-command 'ivy-toggle-calling)
-               (eq this-command 'ivy-next-line)
-               (eq this-command 'ivy-previous-line))
-           (org-runbook-view-target-action (cdr x)))
-          (t (message "%S" this-command) (org-runbook-execute-target-action (cdr x))))))
-
-(when (fboundp 'ivy-set-actions)
-  (ivy-set-actions
-   'org-runbook-ivy
-   `(
-     ("o" org-runbook-multiaction "Execute Target")
-     ("g" (lambda (target) (org-runbook-goto-target-action (cdr target))) "Goto Target")
-     ("p" (lambda (&rest arg) (org-runbook-switch-to-projectile-file)) "Switch to Projectile File")
-     ("y" (lambda (&rest arg) (org-runbook-switch-to-major-mode-file)) "Switch to Major Mode File")
-     ("v" (lambda (target) (org-runbook-view-target-action (cdr target))) "View Target"))))
 
 (when (boundp 'evil-motion-state-modes)
   (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))

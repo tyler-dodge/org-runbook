@@ -6,6 +6,7 @@
 (development
  (depends-on "ert-runner")
  (depends-on "projectile")
+ (depends-on "ivy")
  (depends-on "ert-async")
  (depends-on "el-mock")
  (depends-on "s")
