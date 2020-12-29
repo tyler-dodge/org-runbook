@@ -246,6 +246,23 @@ Use `default-directory' if projectile is unavailable."
                           :targets targets)
                          list))))))))
 
+
+(defun org-runbook-targets-from-file-by-name (file-name)
+  "Finds a file in either the org-runbook project directory 
+or org-runbook modes directory named FILE-NAME.
+Returns all the targets in that file. `nil' if the file does not exist."
+  (interactive)
+  (let ((matcher (lambda (text) (string= (f-filename text) file-name))))
+    (with-current-buffer
+        (find-file-noselect
+         (-some->
+             (append
+              (f-files org-runbook-project-directory matcher)
+              (f-files org-runbook-modes-directory matcher)
+              nil)
+           first))
+      (org-runbook--targets-in-buffer))))
+
 ;;;###autoload
 (defun org-runbook-switch-to-major-mode-file ()
   "Switch current buffer to the file corresponding to the current buffer's major mode."
@@ -521,6 +538,7 @@ TARGET is a `org-runbook-command-target'."
   t)
 
 (when (fboundp 'ivy-read)
+  ;;;###autoload
   (defun org-runbook-ivy ()
     "Prompt for command completion and execute the selected command.
 The rest of the interactive commands are accesible through this via
@@ -543,8 +561,7 @@ otherwise continue prompting for buffers."
                (eq this-command 'ivy-next-line)
                (eq this-command 'ivy-previous-line))
            (org-runbook-view-target-action (cdr x)))
-          (t (message "%S" this-command) (org-runbook-execute-target-action (cdr x)))))
-  )
+          (t (message "%S" this-command) (org-runbook-execute-target-action (cdr x))))))
 
 (when (fboundp 'ivy-set-actions)
   (ivy-set-actions
