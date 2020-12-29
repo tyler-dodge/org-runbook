@@ -482,13 +482,12 @@ TARGET is a `org-runbook-command-target'."
                              (buffer-substring-no-properties
                               (save-excursion (forward-line 1) (point))
                               (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
-                             (let ((context (org-element-context)))
-                               (--doto (ht<-alist (->> (caddr src-block-info)
-                                                       (--map (cons (symbol-name (car it)) (format "%s" (cdr it))))
-                                                       (--filter (not (s-starts-with-p ":" (car it))))))
-                                 (ht-set it "project_root" project-root)
-                                 (ht-set it "current_file" source-buffer-file-name)
-                                 (ht-set it "context" (format "%s" (ht->plist it))))))))
+                             (--doto (ht<-alist (->> (caddr src-block-info)
+                                                     (--map (cons (symbol-name (car it)) (format "%s" (cdr it))))
+                                                     (--filter (not (s-starts-with-p ":" (car it))))))
+                               (ht-set it "project_root" project-root)
+                               (ht-set it "current_file" source-buffer-file-name)
+                               (ht-set it "context" (format "%s" (ht->plist it)))))))
                           group))))
                     (forward-line 1)))
                 (setq subcommands (append (reverse group) subcommands nil)))
@@ -532,13 +531,26 @@ the extra actions. See `ivy-dispatching-done'."
                    (--map (->> it (org-runbook-file-targets)))
                    (-flatten)
                    (--map (cons (->> it (org-runbook-command-target-name)) it)))
-              :caller 'org-runbook-ivy)))
+              :action 'org-runbook-multiaction
+              :caller 'org-runbook-ivy))
+
+  (defun org-runbook-multiaction (x)
+    "Add X to list of selected buffers `swiper-multi-buffers'.
+If X is already part of the list, remove it instead.  Quit the selection if
+X is selected by either `ivy-done', `ivy-alt-done' or `ivy-immediate-done',
+otherwise continue prompting for buffers."
+    (cond ((or (eq this-command 'ivy-toggle-calling)
+               (eq this-command 'ivy-next-line)
+               (eq this-command 'ivy-previous-line))
+           (org-runbook-view-target-action (cdr x)))
+          (t (message "%S" this-command) (org-runbook-execute-target-action (cdr x)))))
+  )
 
 (when (fboundp 'ivy-set-actions)
   (ivy-set-actions
    'org-runbook-ivy
    `(
-     ("o" (lambda (target) (org-runbook-execute-target-action (cdr target))) "Execute Target")
+     ("o" org-runbook-multiaction "Execute Target")
      ("g" (lambda (target) (org-runbook-goto-target-action (cdr target))) "Goto Target")
      ("p" (lambda (&rest arg) (org-runbook-switch-to-projectile-file)) "Switch to Projectile File")
      ("y" (lambda (&rest arg) (org-runbook-switch-to-major-mode-file)) "Switch to Major Mode File")
