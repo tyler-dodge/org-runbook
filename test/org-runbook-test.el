@@ -36,7 +36,7 @@
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-message)
     (org-runbook--output-configuration)
-    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys cl-first)))
     (should (org-runbook-execute))
     (should (string= (org-runbook-command-full-command org-runbook-command-last-command) "echo test"))))
 
@@ -51,7 +51,7 @@
     (save-window-excursion
       (org-runbook-switch-to-major-mode-file))
     (org-runbook--output-configuration)
-    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys cl-first)))
     (org-runbook-view)
     (should (eq (get-buffer org-runbook-view-mode-buffer) (current-buffer)))
     (goto-char (point-min))
@@ -88,7 +88,7 @@
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-message)
     (org-runbook--output-configuration)
-    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys cl-first)))
     (org-runbook-goto)
     (should (s-contains-p "fundamental-mode.org" (buffer-file-name)))
     (goto-char (point-min))
@@ -141,7 +141,7 @@
   (setq-local completing-read-function (lambda (_ collection &rest _) (-some--> collection
                                                                         (ht-keys it)
                                                                         (sort it #'string<)
-                                                                        (first it))))
+                                                                        (cl-first it))))
   (with-mock
     (mock (async-shell-command "echo test-runbook-1-A" "*Test Data 1 >> Test Data A*") => t :times 1)
     (should (org-runbook-execute))))
@@ -161,7 +161,7 @@
     (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
     (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-shell)
     (org-runbook--output-configuration)
-    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+    (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys cl-first)))
     (with-mock
       (mock (async-shell-command "echo test" "*Test*") => t :times 1)
       (should (org-runbook-execute)))
@@ -186,7 +186,7 @@
             (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
             (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-shell)
             (org-runbook--output-configuration)
-            (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+            (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys cl-first)))
             (with-mock
               (mock (async-shell-command "echo test" "*Test*") => t :times 1)
               (should (org-runbook-execute)))
@@ -205,7 +205,7 @@
       (setq-local org-runbook-project-directory (relative-to-test-directory "one-command"))
       (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-shell)
       (org-runbook--output-configuration)
-      (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys first)))
+      (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys cl-first)))
       (with-mock
         (mock (async-shell-command "echo test" "*Test*") => t :times 1)
         (should (org-runbook-execute)))
