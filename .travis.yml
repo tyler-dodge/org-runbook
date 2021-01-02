@@ -18,8 +18,6 @@ before_install:
   # Download the makefile to emacs-travis.mk
   - wget 'https://raw.githubusercontent.com/flycheck/emacs-travis/master/emacs-travis.mk'
   # Install Emacs (according to $EMACS_VERSION) and Cask
-  - make -f emacs-travis.mk install_gnutls
-  - rm -f /usr/lib/libgnutls.so.28
   - make -f emacs-travis.mk install_emacs
   - make -f emacs-travis.mk install_cask
   # Install Texinfo, if you need to build info manuals for your project
