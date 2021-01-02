@@ -266,7 +266,7 @@ Use `default-directory' if projectile is unavailable."
 
 (defun org-runbook-targets-from-file-by-name (file-name)
   "Finds file named FILE-NAME in org-runbook project or modes directories.
-Returns all the targets in that file. `nil' if the file does not exist."
+Returns all the targets in that file. nil if the file does not exist."
   (interactive)
   (let ((matcher (lambda (text) (string= (f-filename text) file-name))))
     (with-current-buffer
@@ -407,11 +407,11 @@ Return `org-runbook-command-target'."
                                    (point))))))))))
 
 (defun org-runbook--get-heading ()
-  "call `org-get-heading' with default arguments."
+  "Call `org-get-heading' with default arguments."
   (substring-no-properties (org-get-heading t t)))
 
 (defun org-runbook-major-mode-file (&optional no-ensure)
-  "Target that appends to the major-mode runbook for the current buffer.
+  "Target that appends to the `major-mode' runbook for the current buffer.
 Ensures the file exists unless NO-ENSURE is non-nil."
   (let ((file (f-join org-runbook-project-directory (concat (symbol-name major-mode) ".org"))))
     (if no-ensure file (org-runbook--ensure-file file))))
@@ -519,7 +519,7 @@ TARGET is a `org-runbook-command-target'."
                               (save-excursion (forward-line 1) (point))
                               (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
                              (--doto (ht<-alist (->> (car (cdr (cdr src-block-info)))
-                                                     (--map (cons (symbol-name (car it)) (concat (format "%s" (cdr it)))))
+                                                     (--map (cons (symbol-name (car it)) (format "%s" (cdr it))))
                                                      (--filter (not (s-starts-with-p ":" (car it))))))
                                (ht-set it "project_root" (substring-no-properties project-root))
                                (ht-set it "current_file" (substring-no-properties source-buffer-file-name))

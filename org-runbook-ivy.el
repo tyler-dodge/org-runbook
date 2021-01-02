@@ -15,6 +15,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+;;; Commentary:
 ;;;
 ;;;
 ;;; Code:
@@ -43,6 +44,7 @@ the extra actions. See `ivy-dispatching-done'."
 
 ;;;###autoload
 (defun org-runbook-search ()
+  "Lookup the targets in all known `org-runbook' files."
   (interactive)
   (ivy-read "Target"
             (cl-loop for target in (org-runbook-all-targets)
@@ -51,6 +53,7 @@ the extra actions. See `ivy-dispatching-done'."
             :action 'org-runbook-multiaction))
 
 (defun org-runbook-target--to-ivy-target (target &optional include-file-name-p)
+  "Convert a `org-runbook-target' TARGET into a cons cell for use with ivy."
   (--> target
        (cons (concat 
               (->> it (org-runbook-command-target-name))
