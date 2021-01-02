@@ -1,10 +1,4 @@
 ;;; org-runbook-ivy.el --- Ivy Extension for Org mode for runbooks -*- lexical-binding: t -*-
-
-;; Author: Tyler Dodge
-;; Version: 1.0
-;; Keywords: convenience, processes, terminals, files
-;; URL: https://github.com/tyler-dodge/org-runbook
-;; Git-Repository: git://github.com/tyler-dodge/org-runbook.git
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
@@ -71,8 +65,6 @@ otherwise continue prompting for buffers."
   (cond
    ((eq this-command 'ivy-done) (org-runbook-execute-target-action (cdr x)))
    (t (org-runbook-view-target-action (cdr x)))))
-
-
 
 (cl-loop
  for command in (list 'org-runbook-ivy 'org-runbook-search)

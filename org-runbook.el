@@ -1,9 +1,9 @@
 ;;; org-runbook.el --- Org mode for runbooks -*- lexical-binding: t -*-
 
 ;; Author: Tyler Dodge
-;; Version: 1.0
+;; Version: 1.1
 ;; Keywords: convenience, processes, terminals, files
-;; Package-Requires: ((emacs "26.1") (seq "2.3") (f "0.20.0") (s "1.12.0") (dash "2.17.0") (mustache "0.24") (ht "0.9"))
+;; Package-Requires: ((emacs "26.1") (seq "2.3") (f "0.20.0") (s "1.12.0") (dash "2.17.0") (mustache "0.24") (ht "0.9") (ivy "0.8.0"))
 ;; URL: https://github.com/tyler-dodge/org-runbook
 ;; Git-Repository: git://github.com/tyler-dodge/org-runbook.git
 ;; This program is free software; you can redistribute it and/or modify
@@ -128,7 +128,7 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
   :group 'org-runbook)
 
 (defcustom org-runbook-process-connection-type nil
-  "The process connection type to default to in org-runbook. 
+  "The process connection type to default to in org-runbook.
 The pty flag is ignored since it's already enabled if this is t."
   :type 'boolean
   :group 'org-runbook)
@@ -265,8 +265,7 @@ Use `default-directory' if projectile is unavailable."
                  (org-runbook--targets-in-buffer))))))
 
 (defun org-runbook-targets-from-file-by-name (file-name)
-  "Finds a file in either the org-runbook project directory 
-or org-runbook modes directory named FILE-NAME.
+  "Finds file named FILE-NAME in org-runbook project or modes directories.
 Returns all the targets in that file. `nil' if the file does not exist."
   (interactive)
   (let ((matcher (lambda (text) (string= (f-filename text) file-name))))
@@ -408,16 +407,17 @@ Return `org-runbook-command-target'."
                                    (point))))))))))
 
 (defun org-runbook--get-heading ()
+  "call `org-get-heading' with default arguments."
   (substring-no-properties (org-get-heading t t)))
 
 (defun org-runbook-major-mode-file (&optional no-ensure)
-  "Target for appending at the end of the runbook corresponding to the current buffer's major mode.
+  "Target that appends to the major-mode runbook for the current buffer.
 Ensures the file exists unless NO-ENSURE is non-nil."
   (let ((file (f-join org-runbook-project-directory (concat (symbol-name major-mode) ".org"))))
     (if no-ensure file (org-runbook--ensure-file file))))
 
 (defun org-runbook-projectile-file (&optional no-ensure)
-  "Return the path for the org runbook file correspoding to the current projectile project.
+  "Return path of the org runbook file for the current projectile project.
 Ensures the file exists unless NO-ENSURE is non-nil."
   (unless (fboundp 'projectile-project-name)
     (user-error "Projectile must be installed for org-runbook-projectile-file"))
