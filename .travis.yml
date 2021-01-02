@@ -7,12 +7,8 @@ cache:
   - directories:
       # Cache stable Emacs binaries (saves 1min per job)
       - "$HOME/emacs/"
-# Allow Emacs snapshot builds to fail and don’t wait for these as they can take
-# a looooong time
 matrix:
   fast_finish: true
-  allow_failures:
-    - env: EMACS_VERSION=snapshot
 env:
   - EMACS_VERSION=26.1
   - EMACS_VERSION=26.2
@@ -24,6 +20,7 @@ before_install:
   # Download the makefile to emacs-travis.mk
   - wget 'https://raw.githubusercontent.com/flycheck/emacs-travis/master/emacs-travis.mk'
   # Install Emacs (according to $EMACS_VERSION) and Cask
+  - make -f emacs-travis.mk install_gnutls
   - make -f emacs-travis.mk install_emacs
   - make -f emacs-travis.mk install_cask
   # Install Texinfo, if you need to build info manuals for your project
