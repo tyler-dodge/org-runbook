@@ -15,7 +15,7 @@ unit:
 	${CASK} exec ert-runner
 
 compile: deps
-	${CASK} exec ${EMACS} -Q -batch -f batch-byte-compile org-runbook.el
+	${CASK} exec ${EMACS} -Q -batch -L . -f batch-byte-compile org-runbook.el org-runbook-ivy.el
 
 clean-elc:
 	rm -f org-runbook.elc

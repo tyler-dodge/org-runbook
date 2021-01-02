@@ -130,7 +130,13 @@ It is provided as a single argument the plist output of `org-runbook--shell-comm
 (defcustom org-runbook-process-connection-type nil
   "The process connection type to default to in org-runbook. 
 The pty flag is ignored since it's already enabled if this is t."
-  :type 'booleanp
+  :type 'boolean
+  :group 'org-runbook)
+
+
+(defface org-runbook-view-var-substitution
+  '((t :inverse-video t))
+  "Face for highlighting the substituted variables when viewing an org-runbook command."
   :group 'org-runbook)
 
 (defvar org-runbook--target-history nil "History for org-runbook completing read for targets.")
@@ -245,6 +251,18 @@ Use `default-directory' if projectile is unavailable."
                           :targets targets)
                          list))))))))
 
+
+(defun org-runbook-all-targets ()
+  "Lists all of the targets available in the project and modes directories."
+  (cl-loop for file in
+           (append (f-files org-runbook-project-directory)
+                   (f-files org-runbook-modes-directory)
+                   nil)
+           append
+           (let ((buffer (find-file-noselect file)))
+             (progn
+               (with-current-buffer buffer
+                 (org-runbook--targets-in-buffer))))))
 
 (defun org-runbook-targets-from-file-by-name (file-name)
   "Finds a file in either the org-runbook project directory 
@@ -390,7 +408,7 @@ Return `org-runbook-command-target'."
                                    (point))))))))))
 
 (defun org-runbook--get-heading ()
-  (substring-no-properties (org-get-heading t t t t)))
+  (substring-no-properties (org-get-heading t t)))
 
 (defun org-runbook-major-mode-file (&optional no-ensure)
   "Target for appending at the end of the runbook corresponding to the current buffer's major mode.
@@ -501,11 +519,21 @@ TARGET is a `org-runbook-command-target'."
                               (save-excursion (forward-line 1) (point))
                               (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
                              (--doto (ht<-alist (->> (caddr src-block-info)
-                                                     (--map (cons (symbol-name (car it)) (format "%s" (cdr it))))
+                                                     (--map (cons (symbol-name (car it)) (concat (format "%s" (cdr it)))))
                                                      (--filter (not (s-starts-with-p ":" (car it))))))
-                               (ht-set it "project_root" project-root)
-                               (ht-set it "current_file" source-buffer-file-name)
-                               (ht-set it "context" (format "%s" (ht->plist it)))))))
+                               (ht-set it "project_root" (substring-no-properties project-root))
+                               (ht-set it "current_file" (substring-no-properties source-buffer-file-name))
+                               (ht-set it "context" (format "%s" (ht->plist it)))
+                               
+                               (cl-loop
+                                for key in (ht-keys it)
+                                do
+                                (ht-set it
+                                        key
+                                        (propertize
+                                         (ht-get it key)
+                                         'font-lock-face 'org-runbook-view-var-substitution
+                                         'face 'org-runbook-view-var-substitution)))))))
                           group))))
                     (forward-line 1)))
                 (setq subcommands (append (reverse group) subcommands nil))

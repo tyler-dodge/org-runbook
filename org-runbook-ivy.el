@@ -28,37 +28,64 @@
 
 
 ;;;###autoload
-(defun org-runbook-ivy ()
+(defun org-runbook-ivy (arg)
     "Prompt for command completion and execute the selected command.
+Given a prefix ARG, this shows all available commands.
+
 The rest of the interactive commands are accesible through this via
 the extra actions. See `ivy-dispatching-done'."
-    (interactive)
-    (ivy-read "Command"
-              (->> (org-runbook-targets)
-                   (--map (->> it (org-runbook-file-targets)))
-                   (-flatten)
-                   (--map (cons (->> it (org-runbook-command-target-name)) it)))
-              :action 'org-runbook-multiaction
-              :caller 'org-runbook-ivy))
+    (interactive "P")
+    (if arg (org-runbook-search)
+      (ivy-read "Command"
+                (cl-loop for target in (org-runbook-targets)
+                         append
+                         (->> target
+                              (org-runbook-file-targets)
+                              (-map #'org-runbook-target--to-ivy-target)))
+                :action 'org-runbook-multiaction
+                :caller 'org-runbook-ivy)))
 
-  (defun org-runbook-multiaction (x)
-    "Add X to list of selected buffers `swiper-multi-buffers'.
+;;;###autoload
+(defun org-runbook-search ()
+  (interactive)
+  (ivy-read "Target"
+            (cl-loop for target in (org-runbook-all-targets)
+                     collect (org-runbook-target--to-ivy-target target t))
+            :caller 'org-runbook-search
+            :action 'org-runbook-multiaction))
+
+(defun org-runbook-target--to-ivy-target (target &optional include-file-name-p)
+  (--> target
+       (cons (concat 
+              (->> it (org-runbook-command-target-name))
+              (when include-file-name-p
+                (concat " - "
+                        (substring-no-properties
+                         (buffer-file-name (org-runbook-command-target-buffer it)))))
+              )
+             it)))
+
+(defun org-runbook-multiaction (x)
+  "Add X to list of selected buffers `swiper-multi-buffers'.
 If X is already part of the list, remove it instead.  Quit the selection if
 X is selected by either `ivy-done', `ivy-alt-done' or `ivy-immediate-done',
 otherwise continue prompting for buffers."
-    (cond ((or (eq this-command 'ivy-toggle-calling)
-               (eq this-command 'ivy-next-line)
-               (eq this-command 'ivy-previous-line))
-           (org-runbook-view-target-action (cdr x)))
-          (t (message "%S" this-command) (org-runbook-execute-target-action (cdr x)))))
+  (cond
+   ((eq this-command 'ivy-done) (org-runbook-execute-target-action (cdr x)))
+   (t (org-runbook-view-target-action (cdr x)))))
 
-(ivy-set-actions
-   'org-runbook-ivy
-   `(
-     ("o" org-runbook-multiaction "Execute Target")
-     ("g" (lambda (target) (org-runbook-goto-target-action (cdr target))) "Goto Target")
-     ("p" (lambda (&rest arg) (org-runbook-switch-to-projectile-file)) "Switch to Projectile File")
-     ("y" (lambda (&rest arg) (org-runbook-switch-to-major-mode-file)) "Switch to Major Mode File")
-     ("v" (lambda (target) (org-runbook-view-target-action (cdr target))) "View Target")))
+
+
+(cl-loop
+ for command in (list 'org-runbook-ivy 'org-runbook-search)
+ do
+ (ivy-set-actions
+  command
+  `(
+    ("o" org-runbook-multiaction "Execute Target")
+    ("g" (lambda (target) (org-runbook-goto-target-action (cdr target))) "Goto Target")
+    ("p" (lambda (&rest arg) (org-runbook-switch-to-projectile-file)) "Switch to Projectile File")
+    ("y" (lambda (&rest arg) (org-runbook-switch-to-major-mode-file)) "Switch to Major Mode File")
+    ("v" (lambda (target) (org-runbook-view-target-action (cdr target))) "View Target"))))
 
 (provide 'org-runbook-ivy)

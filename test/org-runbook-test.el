@@ -7,6 +7,7 @@
 (when (require 'undercover nil t)
   (undercover "*.el"))
 (require 'org-runbook (expand-file-name "org-runbook.el"))
+(require 'org-runbook-ivy (expand-file-name "org-runbook-ivy.el"))
 
 (ert-deftest org-runbook-exists ()
   "Sanity check to make sure expected symbols are exported."
