@@ -4,7 +4,6 @@ CASK ?= cask
 all: test
 
 deps:
-	./setup-cask.sh
 	${CASK} install
 
 test: clean-elc
