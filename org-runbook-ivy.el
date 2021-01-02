@@ -56,7 +56,7 @@ the extra actions. See `ivy-dispatching-done'."
   "Convert a `org-runbook-target' TARGET into a cons cell for use with ivy.
 When INCLUDE-FILE-NAME-P is non-nil, cdr will be suffixed TARGET's target-buffer file name."
   (--> target
-       (cons (concat 
+       (cons (concat
               (->> it (org-runbook-command-target-name))
               (when include-file-name-p
                 (concat " - "
