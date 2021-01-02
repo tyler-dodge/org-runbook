@@ -10,7 +10,6 @@
  (depends-on "ivy")
  (depends-on "ert-async")
  (depends-on "el-mock")
- (depends-on "s")
  (depends-on "undercover")
  (depends-on "dash")
  (depends-on "cask"))

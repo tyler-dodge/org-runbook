@@ -14,9 +14,6 @@ matrix:
   allow_failures:
     - env: EMACS_VERSION=snapshot
 env:
-  - EMACS_VERSION=25.1
-  - EMACS_VERSION=25.2
-  - EMACS_VERSION=25.3
   - EMACS_VERSION=26.1
   - EMACS_VERSION=26.2
   - EMACS_VERSION=26.3
@@ -33,7 +30,6 @@ before_install:
   - make -f emacs-travis.mk install_texinfo
 install:
   # Install your dependencies
-  - ./setup-cask.sh
   - cask install
 script:
   # Run your tests
