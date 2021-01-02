@@ -17,6 +17,11 @@ before_install:
   - export PATH="$HOME/bin:$PATH"
   # Download the makefile to emacs-travis.mk
   # Install Emacs (according to $EMACS_VERSION) and Cask
+  
+# The Ubuntu 14.04 image on Travis has an outdated GnuTLS which prevents us from
+# pulling from ELPA/MELPA under Emacs 26 and above.
+# See https://emacs.stackexchange.com/a/38404
+  - make -f emacs-travis.mk install_gnutls
   - make -f emacs-travis.mk install_emacs
   - make -f emacs-travis.mk install_cask
 install:

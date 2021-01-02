@@ -86,11 +86,6 @@ else
 CONFIGUREFLAGS = --quiet --enable-silent-rules --prefix="$(HOME)"
 endif
 
-# The Ubuntu 14.04 image on Travis has an outdated GnuTLS which prevents us from
-# pulling from ELPA/MELPA under Emacs 26 and above.
-# See https://emacs.stackexchange.com/a/38404
-configure_emacs: install_gnutls
-
 # Tell recipe processes about the reported Emacs version
 export REPORTED_EMACS_VERSION
 
