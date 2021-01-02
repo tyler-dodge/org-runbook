@@ -89,3 +89,4 @@ otherwise continue prompting for buffers."
     ("v" (lambda (target) (org-runbook-view-target-action (cdr target))) "View Target"))))
 
 (provide 'org-runbook-ivy)
+;;; org-runbook-ivy.el ends here

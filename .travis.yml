@@ -33,6 +33,7 @@ before_install:
   - make -f emacs-travis.mk install_texinfo
 install:
   # Install your dependencies
+  - ./setup-cask.sh
   - cask install
 script:
   # Run your tests
