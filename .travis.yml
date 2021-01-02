@@ -2,7 +2,7 @@
 # See https://github.com/travis-ci/travis-ci/issues/9061
 # and https://github.com/moby/moby/issues/22801
 dist: trusty
-language: c
+language: ruby
 cache:
   - directories:
       # Cache stable Emacs binaries (saves 1min per job)
