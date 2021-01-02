@@ -1,6 +1,7 @@
 # Emacs fails to build in container-based builds on Travis
 # See https://github.com/travis-ci/travis-ci/issues/9061
 # and https://github.com/moby/moby/issues/22801
+language: emacs-lisp
 sudo: required
 dist: trusty
 cache:
