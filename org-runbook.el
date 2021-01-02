@@ -277,7 +277,7 @@ Returns all the targets in that file. `nil' if the file does not exist."
               (f-files org-runbook-project-directory matcher)
               (f-files org-runbook-modes-directory matcher)
               nil)
-           first))
+           cl-first))
       (org-runbook--targets-in-buffer))))
 
 ;;;###autoload
@@ -518,7 +518,7 @@ TARGET is a `org-runbook-command-target'."
                              (buffer-substring-no-properties
                               (save-excursion (forward-line 1) (point))
                               (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
-                             (--doto (ht<-alist (->> (caddr src-block-info)
+                             (--doto (ht<-alist (->> (car (cdr (cdr src-block-info)))
                                                      (--map (cons (symbol-name (car it)) (concat (format "%s" (cdr it)))))
                                                      (--filter (not (s-starts-with-p ":" (car it))))))
                                (ht-set it "project_root" (substring-no-properties project-root))
