@@ -477,7 +477,7 @@ TARGET is a `org-runbook-command-target'."
                   (end-of-line)
                   (while (and (re-search-forward (rx "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp")) nil t)
                               (eq (save-excursion (outline-previous-heading) (point)) start))
-                    (setq has-pty-tag (or has-pty-tag (-contains-p (org-get-tags) "PTY")))
+                    (setq has-pty-tag (or has-pty-tag (-contains-p (org-runbook--get-tags) "PTY")))
                     (let* ((context (org-element-context))
                            (src-block-info (with-current-buffer (car start-location)
                                              (save-excursion
@@ -566,6 +566,10 @@ TARGET is a `org-runbook-command-target'."
   (unless command (error "Command cannot be nil"))
   (unless (org-runbook-command-p command) (error "Unexepected type for command %s" command))
   t)
+
+(defun org-runbook--get-tags ()
+  "Get tags for a heading. Returns nil if not at a headline."
+  (when (org-at-heading-p) (org-get-tags)))
 
 (when (boundp 'evil-motion-state-modes)
   (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))
