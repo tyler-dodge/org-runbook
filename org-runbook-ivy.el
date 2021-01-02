@@ -53,7 +53,8 @@ the extra actions. See `ivy-dispatching-done'."
             :action 'org-runbook-multiaction))
 
 (defun org-runbook-target--to-ivy-target (target &optional include-file-name-p)
-  "Convert a `org-runbook-target' TARGET into a cons cell for use with ivy."
+  "Convert a `org-runbook-target' TARGET into a cons cell for use with ivy.
+When INCLUDE-FILE-NAME-P is non-nil, cdr will be suffixed TARGET's target-buffer file name."
   (--> target
        (cons (concat 
               (->> it (org-runbook-command-target-name))
