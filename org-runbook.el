@@ -323,7 +323,7 @@ Returns all the targets in that file. `nil' if the file does not exist."
           (pcase-lambda ((and section (cl-struct org-runbook-subcommand heading command)))
             (setq count (1+ count))
             (--> (concat
-                  (when (not (ht-get displayed-headings heading nil))
+                  (unless (ht-get displayed-headings heading nil)
                     (ht-set displayed-headings heading t)
                     (concat (s-repeat count "*")
                             " "
@@ -398,7 +398,7 @@ Return `org-runbook-command-target'."
                                  (-map 's-trim)
                                  (reverse)
                                  (s-join " >> "))))
-                 (when (not (ht-get known-commands name nil))
+                 (unless (ht-get known-commands name nil)
                    (ht-set known-commands name t)
                    (list (org-runbook-command-target-create
                           :name name

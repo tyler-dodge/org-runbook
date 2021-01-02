@@ -3,7 +3,6 @@
 ;; Author: Tyler Dodge
 ;; Version: 1.0
 ;; Keywords: convenience, processes, terminals, files
-;; Package-Requires: ((emacs "25.1") (seq "2.3") (f "0.20.0") (s "1.12.0") (dash "2.17.0") (mustache "0.24") (ht "0.9") (ivy "0.13.0"))
 ;; URL: https://github.com/tyler-dodge/org-runbook
 ;; Git-Repository: git://github.com/tyler-dodge/org-runbook.git
 ;; This program is free software; you can redistribute it and/or modify
@@ -61,8 +60,7 @@ the extra actions. See `ivy-dispatching-done'."
               (when include-file-name-p
                 (concat " - "
                         (substring-no-properties
-                         (buffer-file-name (org-runbook-command-target-buffer it)))))
-              )
+                         (buffer-file-name (org-runbook-command-target-buffer it))))))
              it)))
 
 (defun org-runbook-multiaction (x)
