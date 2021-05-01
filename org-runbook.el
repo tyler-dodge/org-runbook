@@ -386,7 +386,7 @@ Return `org-runbook-command-target'."
   (save-excursion
     (goto-char (point-min))
     (let* ((known-commands (ht)))
-      (cl-loop while (re-search-forward (rx line-start (* whitespace) "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp")) nil t)
+      (cl-loop while (re-search-forward (rx line-start (* whitespace) "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp" "compile-queue")) nil t)
                append
                (let* ((headings (save-excursion
                                   (append
