@@ -568,8 +568,8 @@ TARGET is a `org-runbook-command-target'."
   t)
 
 (defun org-runbook--get-tags ()
-  "Get tags for a heading. Returns nil if not at a headline."
-  (when (org-at-heading-p) (org-get-tags)))
+  "Get tags for the current heading."
+  (org-get-tags))
 
 (when (boundp 'evil-motion-state-modes)
   (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))
