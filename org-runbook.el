@@ -174,7 +174,8 @@ Used by `org-runbook-repeat-command'.")
   full-command
   target
   subcommands
-  pty)
+  pty
+  org-properties)
 
 (cl-defstruct (org-runbook-file (:constructor org-runbook-file-create)
                                 (:copier org-runbook-file-copy))
@@ -464,6 +465,7 @@ TARGET is a `org-runbook-command-target'."
              (project-root (org-runbook--project-root))
              (source-buffer-file-name (or (buffer-file-name buffer) default-directory))
              (has-pty-tag nil)
+             (properties nil)
              (subcommands nil))
         (set-buffer buffer)
         (goto-char point)
@@ -475,6 +477,10 @@ TARGET is a `org-runbook-command-target'."
                      (group nil))
                 (save-excursion
                   (end-of-line)
+                  (setq properties
+                        (append properties
+                                (org-entry-properties)
+                                nil))
                   (while (and (re-search-forward (rx "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp")) nil t)
                               (eq (save-excursion (outline-previous-heading) (point)) start))
                     (setq has-pty-tag (or has-pty-tag (-contains-p (org-runbook--get-tags) "PTY")))
@@ -542,6 +548,7 @@ TARGET is a `org-runbook-command-target'."
         (org-runbook-command-create
          :name name
          :pty has-pty-tag
+         :org-properties properties
          :target (-some->> subcommands (-filter #'org-runbook-subcommand-p) last car org-runbook-subcommand-target)
          :full-command
          (-some->> subcommands
@@ -551,6 +558,11 @@ TARGET is a `org-runbook-command-target'."
            (--map (s-trim it))
            (s-join ";\n"))
          :subcommands subcommands)))))
+
+(defun org-runbook-command-get-property (command property)
+  (alist-get property
+             (org-runbook-command-org-properties command)
+             nil nil #'string=))
 
 (defun org-runbook--no-commands-error ()
   "Error representing that no commands were found for the current buffer."
