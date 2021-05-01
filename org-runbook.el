@@ -547,7 +547,7 @@ TARGET is a `org-runbook-command-target'."
               (setq at-root (not (org-up-heading-safe))))))
         (org-runbook-command-create
          :name name
-         :pty has-pty-tag
+         :pty (or has-pty-tag (alist-get "PTY" properties nil nil #'string=))
          :org-properties properties
          :target (-some->> subcommands (-filter #'org-runbook-subcommand-p) last car org-runbook-subcommand-target)
          :full-command
