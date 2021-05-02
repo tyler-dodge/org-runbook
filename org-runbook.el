@@ -265,6 +265,11 @@ Use `default-directory' if projectile is unavailable."
                (with-current-buffer buffer
                  (org-runbook--targets-in-buffer))))))
 
+(defun org-runbook-target-at-point ()
+  (cl-loop for target = (org-runbook--targets-in-buffer) then (cdr target)
+           while (-some--> (cadr target) (> (point) (org-runbook-command-target-point it)))
+           finally return (car target)))
+
 (defun org-runbook-targets-from-file-by-name (file-name)
   "Finds file named FILE-NAME in org-runbook project or modes directories.
 Returns all the targets in that file. nil if the file does not exist."
@@ -311,9 +316,11 @@ Returns all the targets in that file. nil if the file does not exist."
   (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
   (pcase-let* ((count 0)
                (displayed-headings (ht))
-               ((cl-struct org-runbook-command subcommands) (org-runbook--shell-command-for-target target)))
-    (switch-to-buffer (or (get-buffer org-runbook-view-mode-buffer)
-                          (generate-new-buffer org-runbook-view-mode-buffer)))
+               ((cl-struct org-runbook-command subcommands) (org-runbook--shell-command-for-target target))
+               (buffer (or (get-buffer org-runbook-view-mode-buffer)
+                          (generate-new-buffer org-runbook-view-mode-buffer))))
+    (display-buffer buffer)
+    (set-buffer buffer)
 
     (org-runbook-view-mode)
     (setq-local inhibit-read-only t)
@@ -481,7 +488,7 @@ TARGET is a `org-runbook-command-target'."
                         (append properties
                                 (org-entry-properties)
                                 nil))
-                  (while (and (re-search-forward (rx "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp")) nil t)
+                  (while (and (re-search-forward (rx "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp" "compile-queue")) nil t)
                               (eq (save-excursion (outline-previous-heading) (point)) start))
                     (setq has-pty-tag (or has-pty-tag (-contains-p (org-runbook--get-tags) "PTY")))
                     (let* ((context (org-element-context))
@@ -506,7 +513,7 @@ TARGET is a `org-runbook-command-target'."
                               (save-excursion (re-search-forward (rx "#+END_SRC")) (beginning-of-line) (point)))
                              ")")))
                           group))
-                        ((pred (s-starts-with-p "shell"))
+                        ((or (pred (string= "compile-queue")) (pred (s-starts-with-p "shell")))
                          (push
                           (org-runbook-subcommand-create
                            :heading start-heading
