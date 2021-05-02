@@ -468,8 +468,7 @@ TARGET is a `org-runbook-command-target'."
   (unless (org-runbook-command-target-p target) (error "Unexpected type passed %s" target))
   (save-excursion
     (pcase-let (((cl-struct org-runbook-command-target name buffer point) target))
-      (let* ((start-location (cons (current-buffer) (point-min)))
-             (project-root (org-runbook--project-root))
+      (let* ((project-root (org-runbook--project-root))
              (source-buffer-file-name (or (buffer-file-name buffer) default-directory))
              (has-pty-tag nil)
              (properties nil)
@@ -480,7 +479,7 @@ TARGET is a `org-runbook-command-target'."
           (let* ((at-root nil))
             (while (not at-root)
               (let* ((start-heading (org-runbook--get-heading))
-                     (start (save-excursion (outline-previous-heading) (point)))
+                     (start (save-excursion (forward-line 1) (outline-previous-heading) (point)))
                      (group nil))
                 (save-excursion
                   (end-of-line)
@@ -491,11 +490,7 @@ TARGET is a `org-runbook-command-target'."
                   (while (and (re-search-forward (rx "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp" "compile-queue")) nil t)
                               (eq (save-excursion (outline-previous-heading) (point)) start))
                     (setq has-pty-tag (or has-pty-tag (-contains-p (org-runbook--get-tags) "PTY")))
-                    (let* ((context (org-element-context))
-                           (src-block-info (with-current-buffer (car start-location)
-                                             (save-excursion
-                                               (goto-char (cdr start-location))
-                                               (org-babel-get-src-block-info nil context)))))
+                    (let* ((src-block-info (org-babel-get-src-block-info nil (org-element-context))))
                       (pcase (car src-block-info)
                         ((pred (s-starts-with-p "emacs-lisp"))
                          (push
