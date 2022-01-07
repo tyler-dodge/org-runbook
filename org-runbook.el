@@ -3,7 +3,7 @@
 ;; Author: Tyler Dodge
 ;; Version: 1.1
 ;; Keywords: convenience, processes, terminals, files
-;; Package-Requires: ((emacs "26.1") (seq "2.3") (f "0.20.0") (s "1.12.0") (dash "2.17.0") (mustache "0.24") (ht "0.9") (ivy "0.8.0"))
+;; Package-equires: ((emacs "26.1") (seq "2.3") (f "0.20.0") (s "1.12.0") (dash "2.17.0") (mustache "0.24") (ht "0.9") (ivy "0.8.0"))
 ;; URL: https://github.com/tyler-dodge/org-runbook
 ;; Git-Repository: git://github.com/tyler-dodge/org-runbook.git
 ;; This program is free software; you can redistribute it and/or modify
@@ -133,6 +133,11 @@ The pty flag is ignored since it's already enabled if this is t."
   :type 'boolean
   :group 'org-runbook)
 
+(defcustom org-runbook-project-root-file "runbook.org"
+  "The file that is appended to t"
+  :group 'org-runbook
+  :type 'string)
+
 
 (defface org-runbook-view-var-substitution
   '((t :inverse-video t))
@@ -148,6 +153,8 @@ If projectile is not imported, this uses the default directory.
 Used by `org-runbook-repeat-command'.")
 
 (defvar-local org-runbook-view--section nil "Tracks the section point is currently on in org-runbook-view-mode")
+
+(defvar-local org-runbook--goto-default-directory nil "Tracks the default directory when any of the switch to org-runbook functions are used.")
 
 (cl-defstruct (org-runbook-command-target (:constructor org-runbook-command-target-create)
                                           (:copier org-runbook-command-target-copy))
@@ -232,11 +239,16 @@ Use `default-directory' if projectile is unavailable."
                                   (list (cons "*current buffer*"
                                               (buffer-file-name)))))
            (projectile-file (list (when (fboundp 'projectile-project-name)
-                                    (cons (concat "*Project " (projectile-project-name) "*")
+                                    (cons (concat "*Project " (projectile-project-name org-runbook--goto-default-directory) "*")
                                           (org-runbook-projectile-file t)))))
+           (project-root-file (list (when (fboundp 'projectile-project-name)
+                                      (cons
+                                       "Project Root Runbook"
+                                       (f-join (org-runbook--project-root)
+                                               org-runbook-project-root-file)))))
            (global-files (--map (cons it it) org-runbook-files))
            (org-files
-            (seq-uniq (-flatten (append major-mode-file current-buffer-file projectile-file global-files))
+            (seq-uniq (-flatten (append major-mode-file current-buffer-file projectile-file project-root-file global-files))
                       (lambda (lhs rhs) (string= (cdr lhs) (cdr rhs))))))
       (cl-loop for file in org-files
                append
@@ -295,7 +307,17 @@ Returns all the targets in that file. nil if the file does not exist."
 (defun org-runbook-switch-to-projectile-file ()
   "Switch current buffer to the file corresponding to the current buffer's projectile mode."
   (interactive)
-  (find-file (org-runbook-projectile-file)))
+  (let ((start-directory default-directory))
+    (find-file (org-runbook-projectile-file))
+    (setq-local org-runbook--goto-default-directory start-directory)))
+
+;;;###autoload
+(defun org-runbook-switch-to-projectile-root-file ()
+  "Switch current buffer to the file corresponding to the current buffer's projectile mode."
+  (interactive)
+  (let ((start-directory default-directory))
+    (find-file (f-join (org-runbook--project-root) "runbook.org"))
+    (setq-local org-runbook--goto-default-directory start-directory)))
 
 ;;;###autoload
 (defun org-runbook-capture-target-major-mode-file ()
@@ -308,7 +330,6 @@ Returns all the targets in that file. nil if the file does not exist."
   "Target for appending at the end of the runbook corresponding to the current buffer's projectile project."
   (org-runbook-switch-to-projectile-file)
   (goto-char (point-max)))
-
 
 
 (defun org-runbook-view-target-action (target)
@@ -356,7 +377,8 @@ Expects COMMAND to be of the form (:command :name)."
     (ht-set org-runbook--last-command-ht
             (org-runbook--project-root)
             command)
-    (funcall org-runbook-execute-command-action command)))
+    (let ((default-directory (or org-runbook--goto-default-directory default-directory)))
+      (funcall org-runbook-execute-command-action command))))
 
 (defun org-runbook-command-execute-eshell (command)
   "Execute the COMMAND in eshell."
@@ -383,9 +405,10 @@ or a `org-runbook-command-target'."
               (cl-struct org-runbook-command-target point buffer))
           (list :buffer buffer :point point)))
        (-let [(&plist :buffer :point) it]
-         (switch-to-buffer buffer)
-         (goto-char point)
-         (pulse-momentary-highlight-one-line (point)))))
+         (display-buffer buffer)
+         (with-current-buffer buffer
+           (goto-char point)
+           (pulse-momentary-highlight-one-line (point))))))
 
 (defun org-runbook--targets-in-buffer ()
   "Get all targets by walking up the org subtree in order.
@@ -429,7 +452,7 @@ Ensures the file exists unless NO-ENSURE is non-nil."
 Ensures the file exists unless NO-ENSURE is non-nil."
   (unless (fboundp 'projectile-project-name)
     (user-error "Projectile must be installed for org-runbook-projectile-file"))
-  (let ((file (f-join org-runbook-project-directory (concat (projectile-project-name) ".org"))))
+  (let ((file (f-join org-runbook-project-directory (concat (projectile-project-name org-runbook--goto-default-directory) ".org"))))
     (if no-ensure file (org-runbook--ensure-file file))))
 
 (defun org-runbook--ensure-file (file)
@@ -453,7 +476,7 @@ Ensures the file exists unless NO-ENSURE is non-nil."
 
 (defun org-runbook--project-root ()
   "Return the current project root if projectile is defined otherwise `default-directory'."
-  (or (and (fboundp 'projectile-project-root) (projectile-project-root))
+  (or (and (fboundp 'projectile-project-root) (projectile-project-root org-runbook--goto-default-directory))
       default-directory))
 
 (defun org-runbook-view--open-at-point ()
@@ -586,6 +609,21 @@ TARGET is a `org-runbook-command-target'."
   (save-excursion
     (outline-back-to-heading)
     (org-get-tags)))
+
+
+
+(defun org-runbook--export-filter-headlines (data back-end channel)
+  (interactive)
+  (-some->> data (s-replace-all '((":PTY:" . "")))))
+
+(defun org-runbook--export-filter-body (data back-end channel)
+  (interactive)
+  (-some->> data (s-replace-all '(("{{project_root}}" . ".")))))
+
+(defun org-runbook-setup-export ()
+  "Sets up org-export to ignore unnecessary tags."
+  (add-to-list 'org-export-filter-body-functions 'org-runbook--export-filter-body)
+  (setq org-export-with-tags nil))
 
 (when (boundp 'evil-motion-state-modes)
   (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))

@@ -83,6 +83,7 @@ otherwise continue prompting for buffers."
     ("g" (lambda (target) (org-runbook-goto-target-action (cdr target))) "Goto Target")
     ("p" (lambda (&rest arg) (org-runbook-switch-to-projectile-file)) "Switch to Projectile File")
     ("y" (lambda (&rest arg) (org-runbook-switch-to-major-mode-file)) "Switch to Major Mode File")
+    ("r" (lambda (&rest arg) (org-runbook-switch-to-projectile-root-file)) "Switch to Project Root File")
     ("v" (lambda (target) (org-runbook-view-target-action (cdr target))) "View Target"))))
 
 (provide 'org-runbook-ivy)
