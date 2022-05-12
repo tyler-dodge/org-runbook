@@ -83,7 +83,10 @@ otherwise continue prompting for buffers."
     ("g" (lambda (target) (org-runbook-goto-target-action (cdr target))) "Goto Target")
     ("p" (lambda (&rest arg) (org-runbook-switch-to-projectile-file)) "Switch to Projectile File")
     ("y" (lambda (&rest arg) (org-runbook-switch-to-major-mode-file)) "Switch to Major Mode File")
+    ("c" (lambda (target) (org-runbook-kill-full-command-target-action (cdr target))) "Add full command to kill ring")
+    ("e" (lambda (target) (org-runbook-eshell-full-command-target-action (cdr target))) "Run full command in eshell")
     ("r" (lambda (&rest arg) (org-runbook-switch-to-projectile-root-file)) "Switch to Project Root File")
+    ("n" (lambda (&rest arg) (org-runbook-switch-to-projectile-root-file)) "Switch to Project Root File")
     ("v" (lambda (target) (org-runbook-view-target-action (cdr target))) "View Target"))))
 
 

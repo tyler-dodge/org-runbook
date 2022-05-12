@@ -1,3 +1,11 @@
+* Test Eshell
+
+#+BEGIN_SRC compile-queue
+  echo A
+  sleep 5
+  echo B
+#+END_SRC
+
 * Test 26.2                                                             :PTY:
 #+BEGIN_SRC compile-queue
     set -o errexit

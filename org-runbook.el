@@ -260,7 +260,7 @@ Use `default-directory' if projectile is unavailable."
                                                org-runbook-project-root-file)))))
            (global-files (--map (cons it it) org-runbook-files))
            (org-files
-            (seq-uniq (-flatten (append major-mode-file current-buffer-file projectile-file project-root-file global-files))
+            (seq-uniq (-flatten (append current-buffer-file projectile-file project-root-file major-mode-file global-files))
                       (lambda (lhs rhs) (string= (cdr lhs) (cdr rhs))))))
       (cl-loop for file in org-files
                append
@@ -428,9 +428,68 @@ Returns all the targets in that file. nil if the file does not exist."
   (org-runbook-switch-to-projectile-file)
   (goto-char (point-max)))
 
+(defun org-runbook--find-or-create-eshell-buffer ()
+  "Finds or creates an eshell buffer that's ready to execute a command."
+  (or
+   (cl-loop for buffer being the buffers
+            if (and (eq (buffer-local-value 'major-mode buffer) 'eshell-mode)
+                    (not (get-buffer-process buffer)))
+            return buffer)
+   (eshell)))
+
+;;;###autoload
+(defun eshell/org-runbook (&rest args)
+  "Calls org-runbook and finds the target whose name matches arg concatenated with spaces.
+Executes that command in the buffer"
+  (-let* ((arg-string (s-join " " (--map (format "%s" it) args)))
+          (targets (-flatten (--map (org-runbook-file-targets it) (org-runbook-targets)))))
+    (if-let ((command
+              (--find
+               (string-prefix-p arg-string (org-runbook-command-target-name it))
+               targets)))
+        (let* ((fullcommand (org-runbook-command-full-command (org-runbook--shell-command-for-target command)))
+               (script-name (org-runbook--temp-script-file-for-command-string fullcommand)))
+          (goto-char (point-max))
+          (throw 'eshell-replace-command `(eshell-named-command "sh" (list ,script-name))))
+      (user-error "Unable to find runbook entry with prefix: %s.
+Available Commands:
+%s" arg-string (cl-loop for target in targets
+                        concat (format "%s\n" (org-runbook-command-target-name target)))))))
+
+(eval-after-load 'eshell
+  '(add-to-list 'eshell-complex-commands "org-runbook"))
+
+(defun org-runbook--temp-script-file-for-command-string (command-string)
+  (let ((script-name (string-trim (shell-command-to-string "mktemp"))))
+    (prog1 script-name
+      (with-temp-file script-name
+        (insert "#!/usr/bin/env bash
+")
+        (when command-string (insert command-string))))))
+
+(defun org-runbook-eshell-full-command-target-action (target)
+  "Takes the selected command and runs it in eshell. Expects TARGTET to be a `org-runbook-command-target'.
+It will attempt to run the command in an existing eshell buffer before creating a new one.
+"
+  (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
+  (let ((command (org-runbook-command-full-command (org-runbook--shell-command-for-target target)))
+        (eshell (org-runbook--find-or-create-eshell-buffer))
+        )
+    
+    (with-current-buffer eshell
+      (goto-char (point-max))
+      (insert "sh ")
+      (insert (org-runbook--temp-script-file-for-command-string command))
+      (eshell-send-input)
+      )))
+
+(defun org-runbook-kill-full-command-target-action (target)
+  "Takes the selected command and puts the fully generated command into the kill ring. Expects TARGTET to be a `org-runbook-command-target'."
+  (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
+  (kill-new (substring-no-properties (org-runbook-command-full-command (org-runbook--shell-command-for-target target)))))
 
 (defun org-runbook-view-target-action (target)
-  "View the selected command from helm.  Expects TARGET to be a `org-runbook-command-target'."
+  "View the selected command.  Expects TARGET to be a `org-runbook-command-target'."
   (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
   (pcase-let* ((count 0)
                (displayed-headings (ht))
@@ -490,8 +549,13 @@ Expects COMMAND to be of the form (:command :name)."
   (pcase-let (((cl-struct org-runbook-command full-command name) command))
     ;; Intentionally not shell quoting full-command since it's a script
     (let ((process-connection-type (or org-runbook-process-connection-type
-                                       (org-runbook-command-pty command))))
-      (async-shell-command full-command (concat "*" name "*")))))
+                                       (org-runbook-command-pty command)))
+          (buffer-name (concat "*" name "*"))
+          (script-file (org-runbook--temp-script-file-for-command-string full-command)))
+      
+      (start-process-shell-command buffer-name (or (get-buffer buffer-name) (generate-new-buffer buffer-name))
+                                   (concat "sh " script-file)
+                                   ))))
 
 (defun org-runbook-goto-target-action (command)
   "Goto the position referenced by COMMAND.

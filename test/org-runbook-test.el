@@ -143,7 +143,7 @@
                                                                         (sort it #'string<)
                                                                         (cl-first it))))
   (with-mock
-    (mock (async-shell-command "echo test-runbook-1-A" "*Test Data 1 >> Test Data A*") => t :times 1)
+    (mock (start-process-shell-command "*Test Data 1 >> Test Data A*" * *) => t :times 1)
     (should (org-runbook-execute))))
 
 (ert-deftest org-runbook-view--open-at-point-error ()
@@ -163,7 +163,7 @@
     (org-runbook--output-configuration)
     (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys cl-first)))
     (with-mock
-      (mock (async-shell-command "echo test" "*Test*") => t :times 1)
+      (mock (start-process-shell-command "*Test*" * *) => t :times 1)
       (should (org-runbook-execute)))
 
     (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-eshell)
@@ -188,7 +188,7 @@
             (org-runbook--output-configuration)
             (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys cl-first)))
             (with-mock
-              (mock (async-shell-command "echo test" "*Test*") => t :times 1)
+              (mock (start-process-shell-command "*Test*" * *) => t :times 1)
               (should (org-runbook-execute)))
             (setq-local org-runbook-modes-directory (relative-to-test-directory "no-commands"))
             (setq-local org-runbook-project-directory (relative-to-test-directory "no-commands"))
@@ -207,7 +207,7 @@
       (org-runbook--output-configuration)
       (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys cl-first)))
       (with-mock
-        (mock (async-shell-command "echo test" "*Test*") => t :times 1)
+        (mock (start-process-shell-command "*Test*" * *) => t :times 1)
         (should (org-runbook-execute)))
       (should (not (f-exists-p (relative-to-test-directory "one-command/org-runbook.org")))))))
 
