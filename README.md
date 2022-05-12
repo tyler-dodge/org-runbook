@@ -64,6 +64,37 @@ If projectile-mode is installed, org-runbook also pulls the file named PROJECTIL
 
 All files in [org-runbook-files] are also pulled.
 
+### runbook org file search order
+
+org-runbook search the org files for runbook in the following order.
+
+1. Current File if the file is an org file.
+2. `org-runbook-project-directory`/<project_name>.org
+3. <project_root>/runbook.org
+4. `org-runbook-modes-directory`/<major_mode>.org
+5. `org-runbook-files`
+
+The current search list can be seen by calling `org-runbook-org-file-list`
+
+### Eshell Support
+
+Calling `org-runbook` from eshell with no args outputs the available commands
+```
+~ $ org-runbook 
+```
+
+Any of the command names can be passed as an argument to org-runbook,
+and it will evaluate the corresponding command in eshell.
+
+```
+~ $ org-runbook 'Build >> Quick'
+```
+
+The view flag generates portable output for exporting from org-runbook to bash.
+
+```
+~ $ org-runbook --view 'Build >> Quick'
+```
 
 ### Placeholders
 Commands will resolve placeholders before evaluating.

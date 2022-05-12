@@ -243,25 +243,32 @@ Use `default-directory' if projectile is unavailable."
       (org-runbook-execute))))
 
 ;;;###autoload
+(defun org-runbook-org-file-list ()
+  "Return the org file list in the correct order.
+Context dependent on which buffer it is called in."
+  (-let* ((major-mode-file (list (cons (symbol-name major-mode) (org-runbook-major-mode-file t))))
+         (current-buffer-file (when (eq major-mode 'org-mode)
+                                (list (cons "*current buffer*"
+                                            (buffer-file-name)))))
+         (projectile-file (list (when (fboundp 'projectile-project-name)
+                                  (cons (concat "*Project " (projectile-project-name org-runbook--goto-default-directory) "*")
+                                        (org-runbook-projectile-file t)))))
+         (project-root-file (list (when (fboundp 'projectile-project-name)
+                                    (cons
+                                     "Project Root Runbook"
+                                     (f-join (org-runbook--project-root)
+                                             org-runbook-project-root-file)))))
+         (global-files (--map (cons it it) org-runbook-files))
+         (org-files
+          (seq-uniq (-flatten (append current-buffer-file projectile-file project-root-file major-mode-file global-files))
+                    (lambda (lhs rhs) (string= (cdr lhs) (cdr rhs))))))
+    org-files))
+
+;;;###autoload
 (defun org-runbook-targets ()
   "Return the runbook commands corresponding to the current buffer."
   (save-excursion
-    (let* ((major-mode-file (list (cons (symbol-name major-mode) (org-runbook-major-mode-file t))))
-           (current-buffer-file (when (eq major-mode 'org-mode)
-                                  (list (cons "*current buffer*"
-                                              (buffer-file-name)))))
-           (projectile-file (list (when (fboundp 'projectile-project-name)
-                                    (cons (concat "*Project " (projectile-project-name org-runbook--goto-default-directory) "*")
-                                          (org-runbook-projectile-file t)))))
-           (project-root-file (list (when (fboundp 'projectile-project-name)
-                                      (cons
-                                       "Project Root Runbook"
-                                       (f-join (org-runbook--project-root)
-                                               org-runbook-project-root-file)))))
-           (global-files (--map (cons it it) org-runbook-files))
-           (org-files
-            (seq-uniq (-flatten (append current-buffer-file projectile-file project-root-file major-mode-file global-files))
-                      (lambda (lhs rhs) (string= (cdr lhs) (cdr rhs))))))
+    (let* ((org-files (org-runbook-org-file-list)))
       (cl-loop for file in org-files
                append
                (save-excursion
@@ -441,20 +448,54 @@ Returns all the targets in that file. nil if the file does not exist."
 (defun eshell/org-runbook (&rest args)
   "Calls org-runbook and finds the target whose name matches arg concatenated with spaces.
 Executes that command in the buffer"
-  (-let* ((arg-string (s-join " " (--map (format "%s" it) args)))
-          (targets (-flatten (--map (org-runbook-file-targets it) (org-runbook-targets)))))
-    (if-let ((command
-              (--find
-               (string-prefix-p arg-string (org-runbook-command-target-name it))
-               targets)))
-        (let* ((fullcommand (org-runbook-command-full-command (org-runbook--shell-command-for-target command)))
-               (script-name (org-runbook--temp-script-file-for-command-string fullcommand)))
-          (goto-char (point-max))
-          (throw 'eshell-replace-command `(eshell-named-command "sh" (list ,script-name))))
-      (user-error "Unable to find runbook entry with prefix: %s.
-Available Commands:
-%s" arg-string (cl-loop for target in targets
-                        concat (format "%s\n" (org-runbook-command-target-name target)))))))
+  (let* ((targets (-flatten (--map (org-runbook-file-targets it) (org-runbook-targets))))
+        (available-commands (cl-loop for target in targets
+                                     concat (format "- \"%s\"\n" (org-runbook-command-target-name target))))
+        (context-string (concat
+                         "# Search Path:
+
+"
+                         (->> (org-runbook-org-file-list)
+                              (--map (concat "- " (cdr it)))
+                              (s-join "\n"))
+                         "
+
+"
+                         (format "# Available Commands:
+
+%s" available-commands))))
+    (condition-case err
+        (eshell-eval-using-options
+         "org-runbook"
+         args
+         `((nil "help" nil nil "Show help")
+           (nil "view" nil view-p "Output command to stdout. Output should be valid for to be read as a bash script.")
+           :usage "COMMAND-NAME-PREFIX"
+           :post-usage ,context-string
+           :show-usage t)
+         (-let* ((arg-string (s-join " " (--map (format "%s" it) args))))
+            (if-let ((command
+                      (and args
+                           (--find
+                            (string-prefix-p arg-string (org-runbook-command-target-name it))
+                            targets))))
+                (cond (view-p
+                        (concat
+                         "#!/bin/env bash"
+                         "\n# File: " (buffer-file-name (org-runbook-command-target-buffer command))
+                         "\n# Command Name: " (org-runbook-command-name (org-runbook--shell-command-for-target command))
+                         "\n"
+                         (org-runbook-command-full-command (org-runbook--shell-command-for-target command))
+                         "\n"))
+                      (t
+                       (let* ((fullcommand (org-runbook-command-full-command (org-runbook--shell-command-for-target command)))
+                              (script-name (org-runbook--temp-script-file-for-command-string fullcommand)))
+                         (goto-char (point-max))
+                         (throw 'eshell-replace-command `(eshell-named-command "sh" (list ,script-name))))))
+              (user-error "Unable to find command with prefix %s.
+
+%s" arg-string context-string))))
+      (error (user-error "%s" (error-message-string err))))))
 
 (eval-after-load 'eshell
   '(add-to-list 'eshell-complex-commands "org-runbook"))
