@@ -164,11 +164,6 @@
     (setq-local completing-read-function (lambda (_ collection &rest _) (-some-> collection ht-keys cl-first)))
     (with-mock
       (mock (start-process-shell-command "*Test*" * *) => t :times 1)
-      (should (org-runbook-execute)))
-
-    (setq-local org-runbook-execute-command-action #'org-runbook-command-execute-eshell)
-    (with-mock
-      (mock (eshell-command "echo test") => t :times 1)
       (should (org-runbook-execute)))))
 
 (ert-deftest org-runbook--projectile-should-be-optional ()

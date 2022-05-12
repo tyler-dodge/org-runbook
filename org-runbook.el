@@ -577,13 +577,6 @@ Expects COMMAND to be of the form (:command :name)."
     (let ((default-directory (or org-runbook--goto-default-directory default-directory)))
       (funcall org-runbook-execute-command-action command))))
 
-(defun org-runbook-command-execute-eshell (command)
-  "Execute the COMMAND in eshell."
-  (org-runbook--validate-command command)
-  (pcase-let (((cl-struct org-runbook-command full-command) command))
-    ;; Intentionally not shell quoting full-command since it's a script
-    (eshell-command full-command)))
-
 (defun org-runbook-command-execute-shell (command)
   "Execute the COMMAND in shell."
   (org-runbook--validate-command command)

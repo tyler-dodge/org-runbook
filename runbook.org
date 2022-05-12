@@ -12,7 +12,7 @@
     set -o pipefail
     set -o nounset
     cd {{project_root}}
-    nix-build nix/emacs-26.2.nix --run '${emacs}/bin/emacs --batch -q -l $company_tailwindcss -l ert-runner'
+    nix-build nix/emacs-26.2.nix --run '${emacs}/bin/emacs --batch -q -l $org_runbook -l ert-runner'
 
 #+END_SRC
 
@@ -22,7 +22,7 @@
     set -o pipefail
     set -o nounset
     cd {{project_root}}
-    nix-build nix/emacs-26.3.nix --run '${emacs}/bin/emacs --batch -q -l $company_tailwindcss -l ert-runner'
+    nix-build nix/emacs-26.3.nix --run '${emacs}/bin/emacs --batch -q -l $org_runbook -l ert-runner'
 
 #+END_SRC
 
@@ -32,7 +32,7 @@
     set -o pipefail
     set -o nounset
     cd {{project_root}}
-    nix-build nix/emacs-27.1.nix --run '${emacs}/bin/emacs --batch -q -l $company_tailwindcss -l ert-runner'
+    nix-build nix/emacs-27.1.nix --run '${emacs}/bin/emacs --batch -q -l $org_runbook -l ert-runner'
 
 #+END_SRC
 
@@ -43,6 +43,6 @@
     set -o pipefail
     set -o nounset
     cd {{project_root}}
-    nix-build nix/emacs-27.2.nix --run '${emacs}/bin/emacs --batch -q -l $company_tailwindcss -l ert-runner'
+    nix-build nix/emacs-27.2.nix --run '${emacs}/bin/emacs --batch -q -l $org_runbook -l ert-runner'
 
 #+END_SRC
