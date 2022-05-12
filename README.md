@@ -3,7 +3,7 @@
 [![MELPA](https://melpa.org/packages/org-runbook-badge.svg)](https://melpa.org/#/org-runbook)
 [![Version](https://img.shields.io/github/v/tag/tyler-dodge/org-runbook)](https://github.com/tyler-dodge/org-runbook/releases)
 [![Build Status](https://app.travis-ci.com/tyler-dodge/org-runbook.svg?branch=master)](https://travis-ci.com/github/tyler-dodge/org-runbook) 
-[![Coverage Status](https://coveralls.io/repos/github/tyler-dodge/org-runbook/badge.png?branch=master)](https://coveralls.io/github/tyler-dodge/org-runbook)
+[![Coverage Status](https://coveralls.io/repos/github/tyler-dodge/org-runbook/badge.svg?branch=master)](https://coveralls.io/github/tyler-dodge/org-runbook?branch=master)
 
 ---
 
