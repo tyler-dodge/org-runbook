@@ -503,9 +503,10 @@ or a `org-runbook-command-target'."
           (list :buffer buffer :point point)))
        (-let [(&plist :buffer :point) it]
          (display-buffer buffer)
-         (with-current-buffer buffer
-           (goto-char point)
-           (pulse-momentary-highlight-one-line (point))))))
+         (set-buffer buffer)
+         (goto-char point)
+         (pulse-momentary-highlight-one-line (point))
+         buffer)))
 
 (defun org-runbook--targets-in-buffer ()
   "Get all targets by walking up the org subtree in order.

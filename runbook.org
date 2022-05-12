@@ -1,0 +1,40 @@
+* Test 26.2                                                             :PTY:
+#+BEGIN_SRC compile-queue
+    set -o errexit
+    set -o pipefail
+    set -o nounset
+    cd {{project_root}}
+    nix-build nix/emacs-26.2.nix --run '${emacs}/bin/emacs --batch -q -l $company_tailwindcss -l ert-runner'
+
+#+END_SRC
+
+* Test 26.3                                                             :PTY:
+#+BEGIN_SRC compile-queue
+    set -o errexit
+    set -o pipefail
+    set -o nounset
+    cd {{project_root}}
+    nix-build nix/emacs-26.3.nix --run '${emacs}/bin/emacs --batch -q -l $company_tailwindcss -l ert-runner'
+
+#+END_SRC
+
+* Test 27.1                                                             :PTY:
+#+BEGIN_SRC compile-queue
+    set -o errexit
+    set -o pipefail
+    set -o nounset
+    cd {{project_root}}
+    nix-build nix/emacs-27.1.nix --run '${emacs}/bin/emacs --batch -q -l $company_tailwindcss -l ert-runner'
+
+#+END_SRC
+
+
+* Test 27.2                                                             :PTY:
+#+BEGIN_SRC compile-queue
+    set -o errexit
+    set -o pipefail
+    set -o nounset
+    cd {{project_root}}
+    nix-build nix/emacs-27.2.nix --run '${emacs}/bin/emacs --batch -q -l $company_tailwindcss -l ert-runner'
+
+#+END_SRC
