@@ -8,8 +8,13 @@ function buildPhase() {
     mkdir home
     export HOME=home/
     ${emacs}/bin/emacs -q --version
-    ${emacs}/bin/emacs -q -batch -l $org_runbook -l $org_runbook_ivy -l ert-runner
-    mkdir $out
+    ${emacs}/bin/emacs -q -batch -l $org_runbook -l $org_runbook_ivy -l ert-runner | tee $out
+    STATUS="${PIPESTATUS[0]}"
+    if [ $STATUS -gt 0 ]
+    then
+        rm $out
+        exit $STATUS
+    fi
 }
 
 function genericBuild() {
