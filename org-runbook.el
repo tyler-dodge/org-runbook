@@ -144,6 +144,11 @@ The pty flag is ignored since it's already enabled if this is t."
   "Face for highlighting the substituted variables when viewing an org-runbook command."
   :group 'org-runbook)
 
+(defface org-runbook-bookmark-link-highlight
+  '((t :inverse-video t))
+  "Face for highlighting the the boomkark links for `org-runbook-bookmarks'."
+  :group 'org-runbook)
+
 (defvar org-runbook--target-history nil "History for org-runbook completing read for targets.")
 
 (defvar org-runbook--last-command-ht (ht)
@@ -183,6 +188,13 @@ Used by `org-runbook-repeat-command'.")
   subcommands
   pty
   org-properties)
+
+(cl-defstruct (org-runbook-bookmark (:constructor org-runbook-bookmark-create)
+                                    (:copier org-runbook-bookmark-copy))
+  name
+  full-text
+  target
+  links)
 
 (cl-defstruct (org-runbook-file (:constructor org-runbook-file-create)
                                 (:copier org-runbook-file-copy))
@@ -264,13 +276,98 @@ Use `default-directory' if projectile is unavailable."
                           :targets targets)
                          list))))))))
 
+(defun org-runbook-bookmarks ()
+  (interactive)
+  (let ((org-runbook-bookmark-context-size 2))
+    (ivy-read "Bookmark: "
+              (->>
+               (cl-loop for file in (org-runbook--org-files)
+                        append
+                        (progn
+                          (let ((buffer (find-file-noselect file)))
+                            (with-current-buffer buffer
+                              (org-runbook--bookmarks-in-buffer)))))
+               (--map
+                (let ((bookmark it) 
+                      (text (org-runbook-bookmark-full-text it))
+                      (name (org-runbook-bookmark-name it)))
+                  (->>
+                   (org-runbook-bookmark-links it)
+                   (--map (cons
+                           (let ((link it))
+                                  (-let [(beg . end) (get-text-property 0 :substring link)]
+                                    (with-temp-buffer
+                                      (erase-buffer)
+                                      (insert text)
+                                      (if (not beg)
+                                          (progn
+                                            (forward-line org-runbook-bookmark-context-size)
+                                            (delete-char (- (point-max) (point))))
+                                        (set-text-properties (+ (point-min) beg) (+ (point-min) end) '(face org-runbook-bookmark-link-highlight))
+                                        (goto-char beg)
+                                        (save-excursion
+                                          (forward-line 2)
+                                          (delete-char (- (point-max) (point))))
+                                        (save-excursion
+                                          (forward-line (- org-runbook-bookmark-context-size))
+                                          (when (> (point) (point-min))
+                                            (delete-char (- (point-min) (point)))
+                                            (insert name)
+                                            (insert "\n"))))
+                                      (save-excursion
+                                        (goto-char (point-min))
+                                        (while (re-search-forward (rx ":BOOKMARK:") nil t)
+                                          (replace-match "")))
+                                      (buffer-string))))
+                           (list :link it :bookmark bookmark))))))
+               (-flatten-n 1))
+              :caller 'org-runbook-bookmarks
+              :action #'org-runbook-bookmark--goto-link-action)))
+
+
+(defun org-runbook-bookmark--goto-source-action (select)
+  (pcase  (plist-get (cdr select) :bookmark)
+    ((cl-struct org-runbook-bookmark (target (cl-struct org-runbook-command-target  point buffer)))
+     (-some-->
+         (display-buffer buffer)
+         (set-window-point it point)))))
+
+(defun org-runbook-bookmark--view-action (select)
+  (pcase  (plist-get (cdr select) :bookmark)
+    ((cl-struct org-runbook-bookmark full-text)
+     (display-buffer (--> "*runbook-bookmark-view*" (or (get-buffer it) (generate-new-buffer it))
+                          (prog1 it
+                            (with-current-buffer it
+                              (let ((inhibit-read-only t))
+                                (erase-buffer)
+                                (insert full-text)
+                                (org-mode 1)
+                                (read-only-mode t)))))))))
+
+(defun org-runbook-bookmark--goto-source-action (select)
+  (pcase  (plist-get (cdr select) :bookmark)
+    ((cl-struct org-runbook-bookmark (target (cl-struct org-runbook-command-target  point buffer)))
+     (-some-->
+         (display-buffer buffer)
+         (set-window-point it point)))))
+
+(defun org-runbook-bookmark--goto-link-action (select)
+  (org-open-link-from-string (plist-get (cdr select) :link)))
+
+(defun org-runbook-bookmark--external-browser-action (select)
+  (shell-command-to-string
+   (s-join " " (list "open" (shell-quote-argument (plist-get (cdr select) :link))))))
+
+
+(defun org-runbook--org-files ()
+  (append (f-files org-runbook-project-directory)
+                   (f-files org-runbook-modes-directory)
+                   nil))
 
 (defun org-runbook-all-targets ()
   "Lists all of the targets available in the project and modes directories."
   (cl-loop for file in
-           (append (f-files org-runbook-project-directory)
-                   (f-files org-runbook-modes-directory)
-                   nil)
+           (org-runbook--org-files)
            append
            (let ((buffer (find-file-noselect file)))
              (progn
@@ -413,7 +510,8 @@ or a `org-runbook-command-target'."
 (defun org-runbook--targets-in-buffer ()
   "Get all targets by walking up the org subtree in order.
 Return `org-runbook-command-target'."
-  (save-excursion
+  (org-font-lock-ensure (point-min) (point-max))
+  (save-mark-and-excursion
     (goto-char (point-min))
     (let* ((known-commands (ht)))
       (cl-loop while (re-search-forward (rx line-start (* whitespace) "#+BEGIN_SRC" (* whitespace) (or "shell" "emacs-lisp" "compile-queue")) nil t)
@@ -436,6 +534,47 @@ Return `org-runbook-command-target'."
                           :point (save-excursion
                                    (unless (org-at-heading-p) (re-search-backward (regexp-quote (org-runbook--get-heading))))
                                    (point))))))))))
+
+(defun org-runbook--bookmarks-in-buffer ()
+  "Get all the sections with the header bookmark."
+  (org-font-lock-ensure (point-min) (point-max))
+  (save-mark-and-excursion
+    (goto-char (point-min))
+    (let* ((known-commands (ht)))
+      (cl-loop while (re-search-forward (rx ":BOOKMARK:") nil t)
+               append
+               (let* ((pt (save-excursion (forward-line 0) (point)))
+                      (end (org-end-of-subtree))
+                      (headline (save-excursion (goto-char pt) (s-trim (thing-at-point 'line))))
+                      (full-text (s-trim (buffer-substring pt end)))
+                      (links (save-mark-and-excursion
+                               (goto-char pt)
+                               (cl-loop while (re-search-forward org-any-link-re end t)
+                                        append (-some-->
+                                                  (get-text-property (match-beginning 0) 'htmlize-link)
+                                                 (plist-get it :uri)
+                                                 (propertize
+                                                  it :substring (cons (- (match-beginning 0) pt)
+                                                                      (- (match-end 0) pt)))
+                                                 (list it))))))
+                 (list
+                  (org-runbook-bookmark-create
+                   :name (s-replace ":BOOKMARK:" "" headline) 
+                   :full-text full-text
+                   :links (or links (list (save-excursion (goto-char pt) (org-store-link nil))))
+                   :target (org-runbook-command-target-create
+                            :point pt
+                            :buffer (current-buffer))
+                   )))))))
+
+(defun org-runbook-add-org-template ()
+  (interactive)
+  (add-to-list 'org-capture-templates
+               (list "b" "Add bookmark for this location to the org runbook project file."
+                     'entry
+                     '(function
+                       org-runbook-capture-target-projectile-file)
+                     "* %? :BOOKMARK:\n\n%l")))
 
 (defun org-runbook--get-heading ()
   "Call `org-get-heading' with default arguments."
@@ -611,19 +750,22 @@ TARGET is a `org-runbook-command-target'."
     (org-get-tags)))
 
 
+(eval-after-load 'ox
 
-(defun org-runbook--export-filter-headlines (data back-end channel)
-  (interactive)
-  (-some->> data (s-replace-all '((":PTY:" . "")))))
+  (progn
+    (defun org-runbook--export-filter-headlines (data back-end channel)
+      (interactive)
+      (-some->> data (s-replace-all '((":PTY:" . "")))))
 
-(defun org-runbook--export-filter-body (data back-end channel)
-  (interactive)
-  (-some->> data (s-replace-all '(("{{project_root}}" . ".")))))
+    (defun org-runbook--export-filter-body (data back-end channel)
+      (interactive)
+      (-some->> data (s-replace-all '(("{{project_root}}" . ".")))))
 
-(defun org-runbook-setup-export ()
-  "Sets up org-export to ignore unnecessary tags."
-  (add-to-list 'org-export-filter-body-functions 'org-runbook--export-filter-body)
-  (setq org-export-with-tags nil))
+;;;###autoload
+    (defun org-runbook-setup-export ()
+      "Sets up org-export to ignore unnecessary tags."
+      (add-to-list 'org-export-filter-body-functions 'org-runbook--export-filter-body)
+      (setq org-export-with-tags nil))))
 
 (when (boundp 'evil-motion-state-modes)
   (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))

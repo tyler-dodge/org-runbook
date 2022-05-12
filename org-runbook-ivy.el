@@ -86,5 +86,11 @@ otherwise continue prompting for buffers."
     ("r" (lambda (&rest arg) (org-runbook-switch-to-projectile-root-file)) "Switch to Project Root File")
     ("v" (lambda (target) (org-runbook-view-target-action (cdr target))) "View Target"))))
 
+
+(ivy-set-actions 'org-runbook-bookmarks
+                 '(("o" org-runbook-bookmark--goto-link-action "Open Link")
+                   ("v" org-runbook-bookmark--view-action "View Bookmark")
+                   ("g" org-runbook-bookmark--goto-source-action "Goto Source")))
+
 (provide 'org-runbook-ivy)
 ;;; org-runbook-ivy.el ends here
