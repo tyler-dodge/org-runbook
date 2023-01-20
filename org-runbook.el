@@ -650,7 +650,7 @@ Return `org-runbook-command-target'."
 
 (defun org-runbook--bookmarks-in-buffer ()
   "Get all the sections with the header bookmark."
-  (when (fboundp #'org-font-lock-ensure) (org-font-lock-ensure (point-min) (point-max)))
+  (font-lock-ensure (point-min) (point-max))
   (save-mark-and-excursion
     (goto-char (point-min))
     (let* ((known-commands (ht)))
