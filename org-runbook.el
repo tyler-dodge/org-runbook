@@ -408,12 +408,15 @@ Returns all the targets in that file. nil if the file does not exist."
   (find-file (org-runbook-major-mode-file)))
 
 ;;;###autoload
-(defun org-runbook-switch-to-projectile-file ()
+(defun org-runbook-switch-to-projectile-file (&optional noselect)
   "Switch current buffer to the file corresponding to the current buffer's projectile mode."
   (interactive)
   (let ((start-directory default-directory))
-    (find-file (org-runbook-projectile-file))
-    (setq-local org-runbook--goto-default-directory start-directory)))
+    (prog1
+        (if noselect
+            (find-file-noselect (org-runbook-projectile-file))
+          (find-file (org-runbook-projectile-file)))
+      (setq-local org-runbook--goto-default-directory start-directory))))
 
 ;;;###autoload
 (defun org-runbook-switch-to-projectile-root-file ()
@@ -432,7 +435,7 @@ Returns all the targets in that file. nil if the file does not exist."
 ;;;###autoload
 (defun org-runbook-capture-target-projectile-file ()
   "Target for appending at the end of the runbook corresponding to the current buffer's projectile project."
-  (org-runbook-switch-to-projectile-file)
+  (set-buffer (org-runbook-switch-to-projectile-file t))
   (goto-char (point-max)))
 
 (defun org-runbook--find-or-create-eshell-buffer ()
@@ -500,8 +503,19 @@ Executes that command in the buffer"
 (eval-after-load 'eshell
   '(add-to-list 'eshell-complex-commands "org-runbook"))
 
+(defun org-runbook--noop (&rest arg))
 (defun org-runbook--temp-script-file-for-command-string (command-string)
-  (let ((script-name (string-trim (shell-command-to-string "mktemp"))))
+  
+  (let ((script-name
+         (string-trim
+          (let* ((buffer (generate-new-buffer " *temp-process*"))
+                 (process (start-file-process (buffer-name buffer) buffer (concat (file-remote-p default-directory) "mktemp"))))
+            (set-process-sentinel process #'org-runbook--noop)
+            (while (or (accept-process-output process 0 nil t) (process-live-p process)))
+            (prog1
+                (with-current-buffer buffer (buffer-string))
+              (delete-process process)
+              (kill-buffer buffer))))))
     (prog1 script-name
       (with-temp-file script-name
         (insert "#!/usr/bin/env bash
@@ -609,7 +623,7 @@ or a `org-runbook-command-target'."
 (defun org-runbook--targets-in-buffer ()
   "Get all targets by walking up the org subtree in order.
 Return `org-runbook-command-target'."
-  (org-font-lock-ensure (point-min) (point-max))
+  (font-lock-ensure (point-min) (point-max))
   (save-mark-and-excursion
     (goto-char (point-min))
     (let* ((known-commands (ht)))
@@ -636,7 +650,7 @@ Return `org-runbook-command-target'."
 
 (defun org-runbook--bookmarks-in-buffer ()
   "Get all the sections with the header bookmark."
-  (org-font-lock-ensure (point-min) (point-max))
+  (when (fboundp #'org-font-lock-ensure) (org-font-lock-ensure (point-min) (point-max)))
   (save-mark-and-excursion
     (goto-char (point-min))
     (let* ((known-commands (ht)))
@@ -714,8 +728,15 @@ Ensures the file exists unless NO-ENSURE is non-nil."
 
 (defun org-runbook--project-root ()
   "Return the current project root if projectile is defined otherwise `default-directory'."
-  (or (and (fboundp 'projectile-project-root) (projectile-project-root org-runbook--goto-default-directory))
-      default-directory))
+   (or (and (fboundp 'projectile-project-root) (projectile-project-root org-runbook--goto-default-directory))
+       default-directory))
+
+(defun org-runbook--project-name ()
+  "Return the current project root if projectile is defined otherwise `default-directory'."
+  (string-remove-suffix
+   "/"
+   (or (and (fboundp 'projectile-project-root) (projectile-project-name org-runbook--goto-default-directory))
+       (directory-file-name default-directory))))
 
 (defun org-runbook-view--open-at-point ()
   "Switch buffer to the file referenced at point in `org-runbook-view-mode'."
@@ -730,6 +751,7 @@ TARGET is a `org-runbook-command-target'."
   (save-excursion
     (pcase-let (((cl-struct org-runbook-command-target name buffer point) target))
       (let* ((project-root (org-runbook--project-root))
+             (project-name (org-runbook--project-name))
              (source-buffer-file-name (or (buffer-file-name buffer) default-directory))
              (has-pty-tag nil)
              (properties nil)
@@ -790,7 +812,9 @@ TARGET is a `org-runbook-command-target'."
                              (--doto (ht<-alist (->> (car (cdr (cdr src-block-info)))
                                                      (--map (cons (symbol-name (car it)) (format "%s" (cdr it))))
                                                      (--filter (not (s-starts-with-p ":" (car it))))))
-                               (ht-set it "project_root" (substring-no-properties project-root))
+                               (ht-set it "project_root" (-some--> (substring-no-properties project-root)
+                                                           (s-chop-prefix (or (file-remote-p project-root) "") project-root)))
+                               (ht-set it "project_name" project-name)
                                (ht-set it "current_file" (substring-no-properties source-buffer-file-name))
                                (ht-set it "context" (format "%s" (ht->plist it)))
                                
