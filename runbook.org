@@ -6,26 +6,6 @@
   echo B
 #+END_SRC
 
-* Test 26.2                                                             :PTY:
-#+BEGIN_SRC compile-queue
-    set -o errexit
-    set -o pipefail
-    set -o nounset
-    cd {{project_root}}
-    nix-build nix/emacs-26.2.nix
-
-#+END_SRC
-
-* Test 26.3                                                             :PTY:
-#+BEGIN_SRC compile-queue
-    set -o errexit
-    set -o pipefail
-    set -o nounset
-    cd {{project_root}}
-    nix-build nix/emacs-26.3.nix
-
-#+END_SRC
-
 * Test 27.1                                                             :PTY:
 #+BEGIN_SRC compile-queue
     set -o errexit
