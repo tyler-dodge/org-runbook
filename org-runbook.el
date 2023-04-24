@@ -80,10 +80,13 @@
 (require 'pulse)
 (require 'rx)
 (require 'org)
+(require 'org-capture)
+(require 'ox)
 (require 'ob-core)
 (require 'pcase)
 (require 'subr-x)
 (require 'eshell)
+(require 'esh-mode)
 (require 'cl-lib)
 
 
@@ -222,6 +225,12 @@ Set when any of the switch to org-runbook functions are used.")
       (ht-get target-map key))))
 
 ;;;###autoload
+(defun org-runbook-install-eshell ()
+  "Add eshell aliases for org-runbook."
+  (add-to-list 'eshell-complex-commands "org-runbook")
+  (defalias 'eshell/org-runbook #'org-runbook-eshell))
+
+;;;###autoload
 (defun org-runbook-execute ()
   "Prompt for command completion and execute the selected command."
   (interactive)
@@ -291,6 +300,7 @@ Context dependent on which buffer it is called in."
                          list))))))))
 
 (defun org-runbook-bookmarks ()
+  "List the bookmarks in org-runbook files interactively."
   (interactive)
   (let ((org-runbook-bookmark-context-size 2))
     (ivy-read "Bookmark: "
@@ -324,7 +334,7 @@ Context dependent on which buffer it is called in."
                                           (delete-char (- (point-max) (point))))
                                         (save-excursion
                                           (forward-line (- org-runbook-bookmark-context-size))
-                                          (when (> (point) (point-min))
+                                          (unless (bobp)
                                             (delete-char (- (point-min) (point)))
                                             (insert name)
                                             (insert "\n"))))
@@ -340,6 +350,7 @@ Context dependent on which buffer it is called in."
 
 
 (defun org-runbook-bookmark--goto-source-action (select)
+  "Go to the SELECT bookmark's runbook org file source."
   (pcase  (plist-get (cdr select) :bookmark)
     ((cl-struct org-runbook-bookmark (target (cl-struct org-runbook-command-target  point buffer)))
      (-some-->
@@ -347,6 +358,7 @@ Context dependent on which buffer it is called in."
          (set-window-point it point)))))
 
 (defun org-runbook-bookmark--view-action (select)
+  "View the SELECT bookmark's text."
   (pcase  (plist-get (cdr select) :bookmark)
     ((cl-struct org-runbook-bookmark full-text)
      (display-buffer (--> "*runbook-bookmark-view*" (or (get-buffer it) (generate-new-buffer it))
@@ -359,14 +371,17 @@ Context dependent on which buffer it is called in."
                                 (read-only-mode t)))))))))
 
 (defun org-runbook-bookmark--goto-link-action (select)
+  "Goto the location of SELECT's bookmark."
   (org-link-open-from-string (plist-get (cdr select) :link)))
 
 (defun org-runbook-bookmark--external-browser-action (select)
+  "Goto the location of SELECT's bookmark with a browser."
   (shell-command-to-string
    (s-join " " (list "open" (shell-quote-argument (plist-get (cdr select) :link))))))
 
 
 (defun org-runbook--org-files ()
+  "Return all of the context depenedent runbook org files."
   (append (f-files org-runbook-project-directory)
                    (f-files org-runbook-modes-directory)
                    nil))
@@ -382,13 +397,14 @@ Context dependent on which buffer it is called in."
                  (org-runbook--targets-in-buffer))))))
 
 (defun org-runbook-target-at-point ()
+  "Return the `org-runbook-command-target' at point."
   (cl-loop for target = (org-runbook--targets-in-buffer) then (cdr target)
            while (-some--> (cadr target) (> (point) (org-runbook-command-target-point it)))
            finally return (car target)))
 
 (defun org-runbook-targets-from-file-by-name (file-name)
-  "Finds file named FILE-NAME in org-runbook project or modes directories.
-Returns all the targets in that file. nil if the file does not exist."
+  "Find file named FILE-NAME in org-runbook project or modes directories.
+Returns all the targets in that file.  nil if the file does not exist."
   (interactive)
   (let ((matcher (lambda (text) (string= (f-filename text) file-name))))
     (with-current-buffer
@@ -412,7 +428,9 @@ This file corresponds to the current buffer's major mode."
 ;;;###autoload
 (defun org-runbook-switch-to-projectile-file (&optional noselect)
   "Switch current buffer to the global project file.
-This file corresponds to the current buffer's projectile name."
+This file corresponds to the current buffer's projectile name.
+
+When NOSELECT is non-nil use `find-file-noselect' instead of `find-file'."
   (interactive)
   (let ((start-directory default-directory))
     (prog1
@@ -444,7 +462,7 @@ the current buffer."
   (goto-char (point-max)))
 
 (defun org-runbook--find-or-create-eshell-buffer ()
-  "Finds or creates an eshell buffer.
+  "Find or create an eshell buffer.
 The eshell buffer is ready to execute a command."
   (or
    (cl-loop for buffer being the buffers
@@ -454,8 +472,11 @@ The eshell buffer is ready to execute a command."
    (eshell)))
 
 ;;;###autoload
-(defun eshell/org-runbook (&rest args)
-  "Calls org-runbook from eshell.
+(defun org-runbook-eshell (&rest args)
+  "Call org-runbook from eshell.
+
+ARGS is concatenated with \">>\" and used to lookup the command to execute.
+
 Finds the target whose name matches arg concatenated with spaces.
 Executes that command in the buffer."
   (let* ((targets (-flatten (--map (org-runbook-file-targets it) (org-runbook-targets))))
@@ -507,11 +528,14 @@ Executes that command in the buffer."
 %s" arg-string context-string))))
       (error (user-error "%s" (error-message-string err))))))
 
-(add-to-list 'eshell-complex-commands "org-runbook")
+;;;###autoload
+
 
 (defun org-runbook--noop (&rest _)
-  "No-op that does ignores all arguments.")
+  "Perform a No-op and ignore all arguments.")
+
 (defun org-runbook--temp-script-file-for-command-string (command-string)
+  "Return an executable temp file with the script in COMMAND-STRING."
   (let ((script-name
          (string-trim
           (let* ((buffer (generate-new-buffer " *temp-process*"))
@@ -529,11 +553,10 @@ Executes that command in the buffer."
         (when command-string (insert command-string))))))
 
 (defun org-runbook-eshell-full-command-target-action (target)
-  "Takes the selected command and runs it in eshell.
+  "Take the selected command and run it in eshell.
 Expects TARGET to be a `org-runbook-command-target'.
 It will attempt to run the command in an existing eshell buffer before
-creating a new one.
-"
+creating a new one."
   (unless (org-runbook-command-target-p target) (error "Unexpected type provided: %s" target))
   (let ((command (org-runbook-command-full-command (org-runbook--shell-command-for-target target)))
         (eshell (org-runbook--find-or-create-eshell-buffer)))
@@ -684,8 +707,9 @@ Return `org-runbook-command-target'."
                           :point pt
                           :buffer (current-buffer))))))))
 
-(defun org-runbook-add-org-template ()
-  (interactive)
+;;;###autoload
+(defun org-runbook-add-org-capture-template ()
+  "Add the org-runbook capture templates to `org-capture-templates'."
   (add-to-list 'org-capture-templates
                (list "b" "Add bookmark for this location to the org runbook project file."
                      'entry
@@ -698,7 +722,7 @@ Return `org-runbook-command-target'."
   (substring-no-properties (org-get-heading t t)))
 
 (defun org-runbook-major-mode-file (&optional no-ensure)
-  "Target that appends to the `major-mode' runbook for the current buffer.
+  "Target which will append to the `major-mode' runbook for the current buffer.
 Ensures the file exists unless NO-ENSURE is non-nil."
   (let ((file (f-join org-runbook-project-directory (concat (symbol-name major-mode) ".org"))))
     (if no-ensure file (org-runbook--ensure-file file))))
@@ -724,7 +748,7 @@ Ensures the file exists unless NO-ENSURE is non-nil."
     (define-key (kbd "<return>") #'org-runbook-view--open-at-point)))
 
 (define-derived-mode org-runbook-view-mode org-mode "compile view"
-  "Mode for viewing resolved org-runbook commands"
+  "Mode for viewing resolved org-runbook commands."
   (read-only-mode 1)
   (view-mode 1))
 
@@ -819,7 +843,7 @@ TARGET is a `org-runbook-command-target'."
                                                      (--map (cons (symbol-name (car it)) (format "%s" (cdr it))))
                                                      (--filter (not (s-starts-with-p ":" (car it))))))
                                (ht-set it "project_root" (-some--> (substring-no-properties project-root)
-                                                           (s-chop-prefix (or (file-remote-p project-root) "") project-root)))
+                                                           (s-chop-prefix (or (file-remote-p project-root) "") it)))
                                (ht-set it "project_name" project-name)
                                (ht-set it "current_file" (substring-no-properties source-buffer-file-name))
                                (ht-set it "context" (format "%s" (ht->plist it)))
@@ -853,6 +877,7 @@ TARGET is a `org-runbook-command-target'."
          :subcommands subcommands)))))
 
 (defun org-runbook-command-get-property (command property)
+  "Get the value of PROPERTY from the org-properties of the COMMAND."
   (alist-get property
              (org-runbook-command-org-properties command)
              nil nil #'string=))
@@ -879,20 +904,19 @@ TARGET is a `org-runbook-command-target'."
     (org-get-tags)))
 
 
-(when (require 'ox nil t)
-  (defun org-runbook--export-filter-headlines (data back-end channel)
-    (interactive)
-    (-some->> data (s-replace-all '((":PTY:" . "")))))
+(defun org-runbook--export-filter-headlines (data _ __)
+  "Filter org-runbook specific tags in DATA."
+  (-some->> data (s-replace-all '((":PTY:" . "")))))
 
-  (defun org-runbook--export-filter-body (data back-end channel)
-    (interactive)
-    (-some->> data (s-replace-all '(("{{project_root}}" . ".")))))
+(defun org-runbook--export-filter-body (data _ __)
+  "Filter org-runbook specific substitutions in DATA."
+  (-some->> data (s-replace-all '(("{{project_root}}" . ".")))))
 
 ;;;###autoload
-  (defun org-runbook-setup-export ()
-    "Sets up org-export to ignore unnecessary tags."
-    (add-to-list 'org-export-filter-body-functions 'org-runbook--export-filter-body)
-    (setq org-export-with-tags nil)))
+(defun org-runbook-setup-export ()
+  "Set up org-export to ignore unnecessary tags."
+  (add-to-list 'org-export-filter-body-functions 'org-runbook--export-filter-body)
+  (setq org-export-with-tags nil))
 
 (when (boundp 'evil-motion-state-modes)
   (add-to-list 'evil-motion-state-modes 'org-runbook-view-mode))

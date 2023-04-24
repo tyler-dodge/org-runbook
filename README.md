@@ -76,6 +76,11 @@ The current search list can be seen by calling `org-runbook-org-file-list`
 
 ### Eshell Support
 
+Install the eshell commands by calling
+```
+(org-runbook-install-eshell)
+```
+
 Calling `org-runbook` from eshell with no args outputs the available commands
 ```
 ~ $ org-runbook 
