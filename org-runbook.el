@@ -529,8 +529,6 @@ Executes that command in the buffer."
       (error (user-error "%s" (error-message-string err))))))
 
 ;;;###autoload
-
-
 (defun org-runbook--noop (&rest _)
   "Perform a No-op and ignore all arguments.")
 

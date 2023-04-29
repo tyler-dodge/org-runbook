@@ -8,7 +8,12 @@ function buildPhase() {
     mkdir home
     export HOME=home/
     ${emacs}/bin/emacs -q --version
-    ${emacs}/bin/emacs -q -batch -l $org_runbook -l $org_runbook_ivy -l ert-runner | tee $out
+    source $build_targets
+    wget -O melpazoid.el https://raw.githubusercontent.com/riscy/melpazoid/master/melpazoid/melpazoid.el
+    ${emacs}/bin/emacs -q -batch \
+            --load "${emacs_start}" \
+            --eval "(package-install-file \"melpazoid.el\")" \
+            --load "${run_package_lint}" | tee $out
     STATUS="${PIPESTATUS[0]}"
     if [ $STATUS -gt 0 ]
     then
@@ -20,3 +25,4 @@ function buildPhase() {
 function genericBuild() {
   buildPhase
 }
+

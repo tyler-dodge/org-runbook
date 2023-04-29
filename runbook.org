@@ -12,10 +12,9 @@
     set -o pipefail
     set -o nounset
     cd {{project_root}}
-    nix-build nix/emacs-27.1.nix
+    nix-build nix/targets.nix -A test.emacs_27_1
 
 #+END_SRC
-
 
 * Test 27.2                                                             :PTY:
 #+BEGIN_SRC compile-queue
@@ -23,7 +22,17 @@
     set -o pipefail
     set -o nounset
     cd {{project_root}}
-    nix-build nix/emacs-27.2.nix
+    nix-build nix/targets.nix -A test.emacs_27_2
+
+#+END_SRC
+
+* Test 28.1                                                             :PTY:
+#+BEGIN_SRC compile-queue
+    set -o errexit
+    set -o pipefail
+    set -o nounset
+    cd {{project_root}}
+    nix-build nix/targets.nix -A test.emacs_28_1
 
 #+END_SRC
 
@@ -33,6 +42,6 @@
     set -o pipefail
     set -o nounset
     cd {{project_root}}
-    nix-build nix/package-lint.nix
+    nix-build nix/targets.nix -A package_lint.emacs_28_1
 
 #+END_SRC
