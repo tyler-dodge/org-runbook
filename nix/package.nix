@@ -9,6 +9,7 @@ let
   };
 in {
   name = "org-runbook";
+  test_target = ../test;
   targets = [
     org-runbook-target
     org-runbook-ivy-target
