@@ -6,42 +6,30 @@
   echo B
 #+END_SRC
 
-* Test 27.1                                                             :PTY:
+* nix-build
 #+BEGIN_SRC compile-queue
     set -o errexit
     set -o pipefail
     set -o nounset
     cd {{project_root}}
-    nix-build nix/targets.nix -A test.emacs_27_1
-
 #+END_SRC
 
-* Test 27.2                                                             :PTY:
+** Test 27.1                                                            :PTY:
 #+BEGIN_SRC compile-queue
-    set -o errexit
-    set -o pipefail
-    set -o nounset
-    cd {{project_root}}
-    nix-build nix/targets.nix -A test.emacs_27_2
-
+    nix-build -A test.emacs_27_1
 #+END_SRC
 
-* Test 28.1                                                             :PTY:
+** Test 27.2                                                            :PTY:
 #+BEGIN_SRC compile-queue
-    set -o errexit
-    set -o pipefail
-    set -o nounset
-    cd {{project_root}}
-    nix-build nix/targets.nix -A test.emacs_28_1
-
+    nix-build -A test.emacs_27_2
 #+END_SRC
 
-* Package Lint                                                          :PTY:
+** Test 28.1                                                            :PTY:
 #+BEGIN_SRC compile-queue
-    set -o errexit
-    set -o pipefail
-    set -o nounset
-    cd {{project_root}}
-    nix-build nix/targets.nix -A package_lint.emacs_28_1
+    nix-build -A test.emacs_28_1
+#+END_SRC
 
+** Package Lint                                                         :PTY:
+#+BEGIN_SRC compile-queue
+    nix-build -A package_lint.emacs_28_1
 #+END_SRC
