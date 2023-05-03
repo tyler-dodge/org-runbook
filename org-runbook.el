@@ -535,15 +535,7 @@ Executes that command in the buffer."
 (defun org-runbook--temp-script-file-for-command-string (command-string)
   "Return an executable temp file with the script in COMMAND-STRING."
   (let ((script-name
-         (string-trim
-          (let* ((buffer (generate-new-buffer " *temp-process*"))
-                 (process (start-file-process (buffer-name buffer) buffer (concat (file-remote-p default-directory) "mktemp"))))
-            (set-process-sentinel process #'org-runbook--noop)
-            (while (or (accept-process-output process 0 nil t) (process-live-p process)))
-            (prog1
-                (with-current-buffer buffer (buffer-string))
-              (delete-process process)
-              (kill-buffer buffer))))))
+         (make-temp-file "org-runbook")))
     (prog1 script-name
       (with-temp-file script-name
         (insert "#!/usr/bin/env bash
